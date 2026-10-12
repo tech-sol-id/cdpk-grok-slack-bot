@@ -89,20 +89,22 @@ Sistem menggunakan prinsip **Separation of Concerns (Pemisahan Tanggung Jawab)**
 * **Folder Google Drive**: `https://drive.google.com/drive/folders/1oF8gzaqV1UUdug08KlkKAPomjHsbRL4q`
 * Berisi file kebijakan kantor, SOP alur kerja, panduan teknis, dan informasi produk/layanan CDPK HQ.
 
-### 4.2 Alur Transformasi ke Markdown
-1. **Pengambilan Dokumen**: File di Google Drive diambil via Google Drive API / tool Antigravity local agent.
-2. **Transformasi**:
-   * Google Docs diekspor langsung ke Markdown.
-   * File PDF dan Word diekstrak teksnya dan diformat dengan heading (`#`, `##`), poin-poin (`-`), dan tabel (`|`).
-3. **Penyaringan & Kurasi (Human-in-the-Loop)**:
-   * Admin memiliki kesempatan memeriksa file `.md` yang dihasilkan di folder `knowledge/`.
-   * Menghapus bagian tidak relevan dan memastikan tidak ada data konfidensial/gaji yang bocor ke publik bot.
-4. **Distribusi**:
-   * File `.md` di-commit dan di-push ke GitHub.
-   * Render secara otomatis memperbarui bot dalam 30 detik tanpa downtime.
+### 4.2 Alur Transformasi ke Markdown & Mandat Gemini
+1. **Pengambilan Dokumen & Resolusi Google Drive Shortcuts**:
+   * Sistem mendukung file langsung maupun **Shortcut Folder** (`application/vnd.google-apps.shortcut`) via Google Drive API `shortcutDetails.targetId`.
+   * Tidak perlu menduplikasi atau meng-copy file dari shared folder lain; cukup buat shortcut di folder utama, dan pipeline akan menelusuri ke folder target aslinya.
+2. **Mandat Tugas Gemini 3.8 Flash**:
+   * **Salinan Lengkap**: Menyalin seluruh isi teks, tabel, dan klausul dokumen tanpa memangkas fakta penting atau melakukan auto-sensor pada data angka/spesifik.
+   * **Executive Summary**: Menghasilkan 3 - 5 poin inti paling penting di bagian atas dokumen.
+   * **Struktur Dokumen Rapi**: Memformat dokumen ke hierarki Markdown standar (`#`, `##`, `-`, dan tabel).
+   * **FAQ Otomatis Karyawan**: Mengantisipasi 3 - 7 pertanyaan praktis yang paling sering ditanyakan oleh anggota tim di Slack.
+   * **Metadata Sumber (Citation)**: Menyematkan frontmatter YAML (`sumber_dokumen`, `folder_asal`, `tanggal_ekstraksi`).
+3. **Distribusi & Deploy**:
+   * File `.md` di-commit ke repositori GitHub.
+   * Render secara otomatis memperbarui bot dalam ~30 detik tanpa downtime.
 
 ### 4.3 Mengapa Strategi Ini Menghemat Biaya?
-* **Zero Processing Cost**: Pemrosesan dokumen mentah tidak menggunakan token xAI API berbayar, melainkan komputasi parser lokal.
+* **Zero Processing Cost**: Pemrosesan dokumen tebal tidak menggunakan token xAI API berbayar, melainkan ditangani oleh Google Gemini Flash Free Tier ($0).
 * **Token Efficiency**: File Markdown 60–80% lebih ringkas dibandingkan teks mentah dari PDF/Word.
 * **Peningkatan Akurasi**: Grok secara alami sangat cerdas dalam memahami konteks berstruktur Markdown, mencegah halusinasi.
 
@@ -110,15 +112,19 @@ Sistem menggunakan prinsip **Separation of Concerns (Pemisahan Tanggung Jawab)**
 
 ## 5. Fitur Pengguna di Slack (User Features)
 
-### 5.1 Channel Terpusat (`#ask-grok`)
-* Anggota tim berinteraksi dengan me-mention bot: `@Grok <pertanyaan>`.
-* **Thread Context**: Bot selalu membalas di dalam *thread* agar channel tetap rapi, serta membaca hingga 10 riwayat pesan sebelumnya untuk mempertahankan konteks obrolan.
+### 5.1 Role-Based Access Control (RBAC) Cerdas
+Bot membedakan profil dan hak akses penanya berdasarkan akun Slack (`user_id`, email, dan title profil):
+* **Hak Akses Tinggi (Direksi & Finance Manager)**:
+  * Diizinkan mengakses seluruh informasi konfidensial, nominal keuangan, kompensasi, dan data manajerial jika ditanyakan.
+* **Hak Akses Standar (Karyawan & Tim Umum)**:
+  * Dilindungi aturan privasi ketat: Grok secara otomatis menolak dan membatasi pembagian nominal gaji individu atau rahasia finansial pribadi karyawan lain, serta mengarahkan penanya ke Direksi/Finance secara resmi.
 
-### 5.2 Direct Message (DM 1-on-1)
-* Anggota dapat berkonsultasi secara privat dengan Grok untuk keperluan draf dokumen personal atau pertanyaan kerja spesifik.
+### 5.2 Pencatatan & Penyebutan Sumber Referensi (Citations)
+* Setiap kali Grok menjawab pertanyaan seputar kebijakan, SOP, atau regulasi internal, bot **selalu menyebutkan nama file dokumen sumbernya** (berdasarkan metadata header dokumen) agar tim mengetahui dasar rujukan resminya.
 
-### 5.3 UX & Processing Indicator
-* Emoji reaksi `thinking_face` otomatis disematkan pada pesan user saat Grok sedang memproses jawaban, dan dihapus setelah jawaban berhasil terkirim.
+### 5.3 Channel Terpusat (`#ask-grok`) & Direct Message
+* Anggota tim berinteraksi dengan me-mention bot: `@Grok <pertanyaan>` di channel `#ask-grok` (membalas di thread) atau berkonsultasi privat melalui Direct Message (DM 1-on-1).
+* **Indikator UX**: Emoji reaksi `thinking_face` otomatis disematkan saat Grok sedang memproses jawaban.
 
 ---
 

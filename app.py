@@ -74,22 +74,79 @@ def load_knowledge_base() -> str:
         return "\n\n---\n\n".join(docs)
     return ""
 
-def get_effective_system_prompt() -> str:
-    """Menggabungkan System Prompt identitas dengan Basis Pengetahuan resmi CDPK HQ."""
+PRIVILEGED_EMAILS = set(
+    [e.strip().lower() for e in os.environ.get("ADMIN_EMAILS", "adrian@citradata.id,hq@techsolutions.id,adrian.kansil@gmail.com").split(",") if e.strip()]
+)
+PRIVILEGED_TITLE_KEYWORDS = ["direktur", "director", "finance manager", "manajer keuangan", "cfo", "ceo", "coo", "cto", "general manager"]
+
+def get_user_access_level(client, user_id: str) -> dict:
+    """Mengecek profil penanya di Slack untuk menentukan level hak akses (RBAC)."""
+    if not user_id:
+        return {"level": "STANDARD", "name": "Anggota Tim", "email": ""}
+
+    try:
+        user_info = client.users_info(user=user_id).get("user", {})
+        profile = user_info.get("profile", {})
+        email = profile.get("email", "").lower().strip()
+        real_name = profile.get("real_name") or user_info.get("name", "Anggota Tim")
+        title = (profile.get("title") or "").lower()
+
+        is_privileged = False
+        if email and email in PRIVILEGED_EMAILS:
+            is_privileged = True
+        elif any(k in title for k in PRIVILEGED_TITLE_KEYWORDS):
+            is_privileged = True
+
+        level = "PRIVILEGED" if is_privileged else "STANDARD"
+        return {"level": level, "name": real_name, "email": email, "title": profile.get("title", "")}
+    except Exception as e:
+        logger.warning(f"Gagal mengambil profil user {user_id}: {e}")
+        return {"level": "STANDARD", "name": "Anggota Tim", "email": ""}
+
+def get_effective_system_prompt(user_access: dict = None) -> str:
+    """Menggabungkan System Prompt identitas, Hak Akses Pengguna (RBAC), Panduan Rujukan, dan Basis Pengetahuan."""
     kb = load_knowledge_base()
+
+    user_name = user_access.get("name", "Anggota Tim") if user_access else "Anggota Tim"
+    user_level = user_access.get("level", "STANDARD") if user_access else "STANDARD"
+
+    if user_level == "PRIVILEGED":
+        rbac_instruction = (
+            f"👤 INFORMASI PENANYA: {user_name} (HAK AKSES TINGGI: DIREKSI / FINANCE MANAGER).\n"
+            f"Otoritas: Penanya memiliki wewenang penuh untuk mengakses seluruh informasi kantor, termasuk data keuangan, kompensasi, dan data konfidensial jika ditanyakan."
+        )
+    else:
+        rbac_instruction = (
+            f"👤 INFORMASI PENANYA: {user_name} (HAK AKSES STANDAR: STAF / KARYAWAN UMUM).\n"
+            f"ATURAN PRIVASI KETAT:\n"
+            f"- JANGAN PERNAH menyebarkan nominal gaji individu, kompensasi khusus, atau data pribadi karyawan kepada penanya ini.\n"
+            f"- Jika penanya menanyakan data rahasia/gaji orang lain, tolak dengan sangat sopan dan jelaskan bahwa data tersebut bersifat konfidensial dan hanya dapat diakses melalui Direksi atau Finance Manager secara resmi."
+        )
+
+    citation_instruction = (
+        "📌 PANDUAN RUJUKAN & SUMBER REFERENSI:\n"
+        "- Ketika menjawab pertanyaan seputar SOP, regulasi, atau kebijakan kantor, SELALU sebutkan nama file dokumen sumbernya (contoh: 'Berdasarkan dokumen SOP-X...') yang tertera pada metadata dokumen agar penanya mengetahui dasar rujukannya."
+    )
+
+    prompt_parts = [
+        SYSTEM_PROMPT,
+        rbac_instruction,
+        citation_instruction
+    ]
+
     if kb:
-        return (
-            f"{SYSTEM_PROMPT}\n\n"
+        prompt_parts.append(
             f"=== BASIS PENGETAHUAN RESMI CDPK HQ (KNOWLEDGE BASE) ===\n"
             f"Gunakan dokumen rujukan resmi berikut sebagai panduan utama dalam menjawab pertanyaan seputar CDPK HQ:\n\n"
             f"{kb}\n"
             f"=== AKHIR BASIS PENGETAHUAN ==="
         )
-    return SYSTEM_PROMPT
 
-def get_thread_context(client, channel: str, thread_ts: str, bot_user_id: str) -> list:
+    return "\n\n".join(prompt_parts)
+
+def get_thread_context(client, channel: str, thread_ts: str, bot_user_id: str, user_access: dict = None) -> list:
     """Mengambil riwayat percakapan dalam thread agar percakapan memiliki memori/konteks."""
-    messages = [{"role": "system", "content": get_effective_system_prompt()}]
+    messages = [{"role": "system", "content": get_effective_system_prompt(user_access)}]
     try:
         result = client.conversations_replies(channel=channel, ts=thread_ts, limit=10)
         for msg in result.get("messages", []):
@@ -120,13 +177,15 @@ def handle_mention(event, say, client):
 
     auth_info = client.auth_test()
     bot_user_id = auth_info["user_id"]
+    user_id = event.get("user")
+    user_access = get_user_access_level(client, user_id)
 
     # Ambil konteks jika berada dalam thread, atau buat percakapan baru
     if "thread_ts" in event:
-        conversation = get_thread_context(client, channel, thread_ts, bot_user_id)
+        conversation = get_thread_context(client, channel, thread_ts, bot_user_id, user_access)
     else:
         conversation = [
-            {"role": "system", "content": get_effective_system_prompt()},
+            {"role": "system", "content": get_effective_system_prompt(user_access)},
             {"role": "user", "content": user_text}
         ]
 
@@ -158,8 +217,11 @@ def handle_direct_message(event, say, client):
     except Exception:
         pass
 
+    user_id = event.get("user")
+    user_access = get_user_access_level(client, user_id)
+
     conversation = [
-        {"role": "system", "content": get_effective_system_prompt()},
+        {"role": "system", "content": get_effective_system_prompt(user_access)},
         {"role": "user", "content": user_text}
     ]
 
