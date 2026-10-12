@@ -74,33 +74,45 @@ def load_knowledge_base() -> str:
         return "\n\n---\n\n".join(docs)
     return ""
 
-DIREKSI_IDENTIFIERS = ["gama", "janice", "richard", "adrian"]
-FINANCE_IDENTIFIERS = ["sen sen", "sensen", "ririn", "villa"]
+# Daftar User ID & Email Resmi CDPK HQ (Diverifikasi Langsung dari Slack API)
+DIREKSI_USER_IDS = {"U0C1PULSVUK", "U0C2CR9NAF7", "U0C5FJNKXJR", "U0C6VQR8RT7"}
+DIREKSI_EMAILS = {"gama@citradata.id", "adrian@citradata.id", "janice@citradata.id", "rjap@citradata.id"}
+
+FINANCE_USER_IDS = {"U0C6KD2P527", "U0C6V9YCYLC", "U0C502ZV7FA"}
+FINANCE_EMAILS = {"sensen@citradata.id", "office@citradata.id", "finance@techsolutions.id"}
 
 def get_user_access_level(client, user_id: str) -> dict:
-    """Mengecek profil penanya di Slack untuk menentukan level hak akses (Direksi, Finance, Standard)."""
+    """Mengecek profil penanya di Slack untuk menentukan level hak akses secara presisi (Direksi, Finance, Standard)."""
     if not user_id:
         return {"level": "STANDARD", "name": "Anggota Tim", "email": ""}
+
+    # 1. Verifikasi Cepat via User ID Permanen
+    if user_id in DIREKSI_USER_IDS:
+        return {"level": "DIREKSI", "name": "Direksi CDPK HQ", "email": ""}
+    if user_id in FINANCE_USER_IDS:
+        return {"level": "FINANCE", "name": "Tim Finance CDPK HQ", "email": ""}
 
     try:
         user_info = client.users_info(user=user_id).get("user", {})
         profile = user_info.get("profile", {})
         email = profile.get("email", "").lower().strip()
         real_name = profile.get("real_name") or user_info.get("name", "Anggota Tim")
-        display_name = profile.get("display_name", "")
+        display_name = (profile.get("display_name") or "").lower()
         title = (profile.get("title") or "").lower()
 
-        search_str = f"{real_name} {display_name} {email} {title}".lower()
-
-        # 1. Cek apakah Direksi (Gama, Janice, Richard, Adrian)
-        if any(d in search_str for d in DIREKSI_IDENTIFIERS) or any(t in title for t in ["direktur", "director", "ceo", "cfo", "coo", "cto"]):
+        # 2. Verifikasi Berlapis via Email Resmi
+        if email in DIREKSI_EMAILS or any(d in email for d in ["adrian", "gama", "janice", "rjap"]):
             return {"level": "DIREKSI", "name": real_name, "email": email, "title": profile.get("title", "")}
-
-        # 2. Cek apakah Tim Finance (Sen sen, Ririn, Villa)
-        if any(f in search_str for f in FINANCE_IDENTIFIERS) or any(t in title for t in ["finance", "accounting", "keuangan"]):
+        if email in FINANCE_EMAILS or any(f in email for f in ["sensen", "finance@"]):
             return {"level": "FINANCE", "name": real_name, "email": email, "title": profile.get("title", "")}
 
-        # 3. Default: Staf / Karyawan Umum
+        # 3. Verifikasi via Kata Kunci Jabatan
+        if any(t in title for t in ["direktur", "director", "ceo", "cfo", "coo", "cto"]):
+            return {"level": "DIREKSI", "name": real_name, "email": email, "title": profile.get("title", "")}
+        if any(t in title for t in ["finance", "accounting", "keuangan"]):
+            return {"level": "FINANCE", "name": real_name, "email": email, "title": profile.get("title", "")}
+
+        # 4. Default: Staf / Karyawan Umum
         return {"level": "STANDARD", "name": real_name, "email": email, "title": profile.get("title", "")}
     except Exception as e:
         logger.warning(f"Gagal mengambil profil user {user_id}: {e}")
