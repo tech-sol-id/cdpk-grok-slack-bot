@@ -1,6 +1,8 @@
 import os
 import re
 import logging
+import threading
+from http.server import HTTPServer, BaseHTTPRequestHandler
 from dotenv import load_dotenv
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
@@ -133,7 +135,28 @@ def handle_direct_message(event, say, client):
     except Exception:
         pass
 
+class HealthCheckHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header("Content-type", "text/plain; charset=utf-8")
+        self.end_headers()
+        self.wfile.write(b"CDPK Grok Slack Bot is running!")
+
+    def log_message(self, format, *args):
+        # Mute logging request agar log terminal tetap bersih
+        pass
+
+def start_health_server(port: int = 7860):
+    server = HTTPServer(("0.0.0.0", port), HealthCheckHandler)
+    server.serve_forever()
+
 if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 7860))
+    health_thread = threading.Thread(target=start_health_server, args=(port,), daemon=True)
+    health_thread.start()
+    logger.info(f"Health check HTTP server berjalan di port {port}")
+
     logger.info("Memulai Grok Slack Bot dalam Socket Mode...")
     handler = SocketModeHandler(app, SLACK_APP_TOKEN)
     handler.start()
+
