@@ -1,0 +1,45 @@
+name: Sync Google Drive to Knowledge Base
+
+on:
+  workflow_dispatch: # Memungkinkan tombol "Run workflow" ditekan kapan saja dari web atau HP
+  schedule:
+    - cron: "0 19 * * *" # Berjalan otomatis setiap hari jam 02.00 WIB (19.00 UTC)
+
+jobs:
+  sync-knowledge:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Diperlukan agar GitHub Actions bisa commit file .md ke repo
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Dependencies
+        run: |
+          pip install --upgrade pip
+          pip install google-api-python-client google-auth pypdf python-docx
+
+      - name: Run Drive to Markdown Ingestion
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GDRIVE_FOLDER_ID: "1oF8gzaqV1UUdug08KlkKAPomjHsbRL4q"
+        run: |
+          python scripts/sync_knowledge.py
+
+      - name: Commit and Push Changes
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add knowledge/
+          if git diff --staged --quiet; then
+            echo "Tidak ada perubahan dokumen baru."
+          else
+            git commit -m "Auto-sync knowledge from Google Drive via Gemini AI [skip ci]"
+            git push origin main
+          fi
