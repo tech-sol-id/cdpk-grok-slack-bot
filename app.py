@@ -51,9 +51,45 @@ def ask_grok(messages: list) -> str:
         logger.error(f"Error memanggil xAI API: {e}")
         return f"⚠️ Terjadi kendala saat menghubungi Grok API: `{str(e)}`"
 
+def load_knowledge_base() -> str:
+    """Membaca semua file Markdown (.md) di folder knowledge/ sebagai basis pengetahuan resmi CDPK HQ."""
+    knowledge_dir = os.path.join(os.path.dirname(__file__), "knowledge")
+    if not os.path.exists(knowledge_dir):
+        return ""
+
+    docs = []
+    for root, _, files in os.walk(knowledge_dir):
+        for file in sorted(files):
+            if file.endswith(".md") and file.lower() != "readme.md":
+                path = os.path.join(root, file)
+                try:
+                    with open(path, "r", encoding="utf-8") as f:
+                        content = f.read().strip()
+                        if content:
+                            docs.append(f"### DOKUMEN: {file}\n{content}")
+                except Exception as e:
+                    logger.warning(f"Gagal membaca knowledge file {file}: {e}")
+
+    if docs:
+        return "\n\n---\n\n".join(docs)
+    return ""
+
+def get_effective_system_prompt() -> str:
+    """Menggabungkan System Prompt identitas dengan Basis Pengetahuan resmi CDPK HQ."""
+    kb = load_knowledge_base()
+    if kb:
+        return (
+            f"{SYSTEM_PROMPT}\n\n"
+            f"=== BASIS PENGETAHUAN RESMI CDPK HQ (KNOWLEDGE BASE) ===\n"
+            f"Gunakan dokumen rujukan resmi berikut sebagai panduan utama dalam menjawab pertanyaan seputar CDPK HQ:\n\n"
+            f"{kb}\n"
+            f"=== AKHIR BASIS PENGETAHUAN ==="
+        )
+    return SYSTEM_PROMPT
+
 def get_thread_context(client, channel: str, thread_ts: str, bot_user_id: str) -> list:
     """Mengambil riwayat percakapan dalam thread agar percakapan memiliki memori/konteks."""
-    messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+    messages = [{"role": "system", "content": get_effective_system_prompt()}]
     try:
         result = client.conversations_replies(channel=channel, ts=thread_ts, limit=10)
         for msg in result.get("messages", []):
@@ -90,7 +126,7 @@ def handle_mention(event, say, client):
         conversation = get_thread_context(client, channel, thread_ts, bot_user_id)
     else:
         conversation = [
-            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "system", "content": get_effective_system_prompt()},
             {"role": "user", "content": user_text}
         ]
 
@@ -123,7 +159,7 @@ def handle_direct_message(event, say, client):
         pass
 
     conversation = [
-        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "system", "content": get_effective_system_prompt()},
         {"role": "user", "content": user_text}
     ]
 

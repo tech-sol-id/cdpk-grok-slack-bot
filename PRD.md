@@ -1,82 +1,169 @@
-# Product Requirement Document (PRD): Grok Slack Bot untuk CDPK HQ
+# Product Requirement Document (PRD): Grok Slack Bot & Hybrid Knowledge Base untuk CDPK HQ
 
-## 1. Ringkasan Eksekutif (Executive Summary)
-Proyek ini bertujuan mengintegrasikan kecerdasan buatan Grok (melalui xAI API) ke dalam workspace Slack **CDPK HQ**. Bot ini akan berperan sebagai asisten AI cerdas terpusat yang dapat diakses oleh seluruh anggota tim CDPK HQ melalui mention di channel maupun pesan langsung (Direct Message / DM).
-
----
-
-## 2. Masalah & Solusi
-* **Masalah:** Langganan Grok/X Premium bersifat personal untuk satu akun pengguna dan tidak bisa dibagikan langsung ke workspace Slack tim.
-* **Solusi:** Membangun *Custom Slack App* berbasis **Socket Mode** yang terhubung ke **xAI API (Grok)**, memungkinkan seluruh anggota tim berkolaborasi dengan AI menggunakan satu akun organisasi yang terkelola.
+**Status**: Active / Production Deployed  
+**Versi**: 2.0.0  
+**Target Rilis**: Q4 2026  
+**Owner**: Adrian Kansil (CDPK HQ)  
+**Repositori**: [tech-sol-id/cdpk-grok-slack-bot](https://github.com/tech-sol-id/cdpk-grok-slack-bot)  
+**Live Service**: `https://cdpk-grok-slack-bot.onrender.com`  
 
 ---
 
-## 3. Arsitektur Teknis
+## 1. Latar Belakang & Tujuan (Background & Objectives)
 
-### 3.1 Komponen Sistem
+### 1.1 Latar Belakang
+Tim kerja CDPK HQ membutuhkan asisten kecerdasan buatan (AI) yang cerdas, cepat, dan terintegrasi langsung ke dalam alur komunikasi harian di Slack. Sebelumnya, penggunaan AI bersifat individual di browser masing-masing, sehingga:
+1. Kolaborasi pemecahan masalah dan diskusi tim tidak terdokumentasi di Slack.
+2. AI umum tidak memahami konteks SOP, panduan kerja, dan basis pengetahuan (*knowledge base*) internal CDPK HQ.
+3. Memasukkan dokumen mentah (PDF, Word, Google Docs puluhan halaman) langsung ke API model frontier memakan biaya token yang sangat boros dan rawan halusinasi.
+
+### 1.2 Tujuan Utama
+1. **Asisten AI Kolektif**: Mengintegrasikan xAI Grok (`grok-2-mini` / `grok-2`) ke dalam workspace Slack CDPK HQ melalui channel resmi `#ask-grok` dan Direct Message.
+2. **Arsitektur Hybrid Knowledge Base Hemat Biaya**: Menghubungkan materi kerja dari Google Drive kantor ke dalam format Markdown (`.md`) bersih yang dikurasi secara lokal sebelum diunggah ke cloud, menghemat biaya token hingga 80% dan bernilai konversi \$0.
+3. **Infrastruktur Mandiri 24/7 Bebas Biaya (\$0 Cloud Ops)**: Berjalan secara otomatis di cloud tanpa mewajibkan laptop admin menyala.
+
+---
+
+## 2. Arsitektur Sistem (System Architecture)
+
+Sistem menggunakan prinsip **Separation of Concerns (Pemisahan Tanggung Jawab)** antara pipeline konversi dokumen dan runtime bot di Slack:
+
 ```
-[Slack User (CDPK HQ)]
-       │
-       ▼ (Mention / DM)
-[Slack Socket Mode Connection] (Websocket aman, tanpa butuh IP publik / ngrok)
-       │
-       ▼
-[Slack Bolt Python App]
-       │
-       ▼ (HTTP REST call)
-[xAI API Endpoint (https://api.x.ai/v1)]
-       │
-       ▼ (Response text)
-[Slack Bolt Python App]
-       │
-       ▼ (Reply di thread / DM)
-[Slack User (CDPK HQ)]
-```
+┌────────────────────────────────────────────────────────────────────────┐
+│ BAGIAN A: LOCAL KNOWLEDGE INGESTION PIPELINE (Offline / Admin Laptop)  │
+└────────────────────────────────────────────────────────────────────────┘
+ [ Google Drive Kantor ]
+ Folder ID: 1oF8gzaqV1UUdug08KlkKAPomjHsbRL4q
+ (Format mentah: Docs, PDF, Word, Spreadsheet)
+         │
+         ▼ (Konversi Lokal: Script / Antigravity Agent - Biaya: $0)
+ [ Pembersihan & Ekstraksi Teks ]
+ - Menghilangkan metadata sampah & format biner
+ - Sensor data sensitif (Human-in-the-Loop)
+ - Format ulang menjadi Markdown bersih & terstruktur
+         │
+         ▼
+ [ Direktori knowledge/*.md ] di Repo Git Lokal
+         │
+         ▼ (git push)
+ [ GitHub: tech-sol-id/cdpk-grok-slack-bot ]
 
-### 3.2 Stack Teknologi
-* **Bahasa & Framework:** Python 3.10+ / `slack-bolt` (menggunakan `SocketModeHandler`)
-* **AI Client:** `openai` SDK (dikonfigurasi dengan `base_url="https://api.x.ai/v1"`)
-* **Model AI:** `grok-2` (untuk penalaran kompleks) atau `grok-2-mini` (untuk respons cepat & hemat token)
-* **Manajemen Environment:** `python-dotenv`
+──────────────────────────────────────────────────────────────────────────
 
----
-
-## 4. Fitur Utama (Core Features)
-
-1. **Mention di Channel (`@Grok AI`):**
-   * Bot merespons pertanyaan di public/private channel.
-   * **Thread Reply:** Bot otomatis membalas di dalam *thread* agar tidak mengotori channel utama.
-   * **Context Awareness:** Bot membaca riwayat pesan dalam thread untuk menjaga konteks percakapan multi-turn.
-2. **Direct Message (DM):**
-   * Member dapat berkonsultasi secara privat dengan bot via DM 1-on-1.
-3. **Indikator Proses (UX):**
-   * Menampilkan reaksi emoji atau status pengetikan (*typing indicator*) saat Grok sedang memproses jawaban.
-4. **Error Handling & Rate Limiting:**
-   * Penanganan gracefully saat kuota token habis atau xAI API mengalami timeout.
-   * Format pesan panjang otomatis dipecah agar sesuai batas karakter Slack (4.000 karakter per pesan).
-
----
-
-## 5. Konfigurasi Lingkungan (Environment Variables)
-
-File `.env` akan menyimpan:
-```bash
-# Slack Credentials
-SLACK_BOT_TOKEN=xoxb-...
-SLACK_APP_TOKEN=xapp-...
-
-# xAI Credentials
-XAI_API_KEY=xai-...
-XAI_MODEL=grok-2-mini
-DEFAULT_SYSTEM_PROMPT="Anda adalah asisten AI resmi CDPK HQ yang didukung oleh Grok. Jawab dengan cerdas, ramah, dan profesional."
+┌────────────────────────────────────────────────────────────────────────┐
+│ BAGIAN B: CLOUD SLACK BOT ENGINE (24/7 Online di Render Cloud)         │
+└────────────────────────────────────────────────────────────────────────┘
+ [ GitHub Commit Trigger ]
+         │ (Render Auto-deploy ~30 detik)
+         ▼
+ [ Docker Container di Render (Region: Singapore) ]
+    ├── Port 7860: Mini HTTP Server (Health Check) <─── [ UptimeRobot ]
+    └── Background Thread: Slack Bolt (Socket Mode)      (Ping tiap 5 menit)
+            │
+            ├─► Memuat knowledge/*.md ke memori
+            ├─► Terhubung Outbound WebSocket ke Slack CDPK HQ
+            │
+            ▼ (Member mention di #ask-grok atau kirim DM)
+ [ Slack CDPK HQ ] ◄── (Jawaban cerdas berbasis SOP CDPK) ──► [ xAI Grok API ]
 ```
 
 ---
 
-## 6. Rencana Peluncuran (Deployment Plan)
+## 3. Komponen Arsitektur & Stack Teknologi
 
-* **Fase 1 (Lokal / Development):** Menjalankan bot di mesin lokal menggunakan Socket Mode untuk memverifikasi fungsionalitas dan otentikasi.
-* **Fase 2 (Git & Versioning):** Inisialisasi Git repository untuk pelacakan kode dan kemudahan deployment.
-* **Fase 3 (Production Deployment):** 
-  * Opsi A: Berjalan sebagai `systemd service` atau `pm2 / tmux` di server/PC kantor yang selalu aktif.
-  * Opsi B: Dideploy dalam bentuk container Docker ke serverless cloud (Google Cloud Run / Render / VPS).
+| Komponen | Teknologi | Keterangan & Rationale |
+| :--- | :--- | :--- |
+| **Runtime & Language** | Python 3.11 / Docker | Ringan, kompatibel dengan container cloud modern. |
+| **Slack Framework** | `slack-bolt`, `slack-sdk` | Menggunakan **Socket Mode** via WebSocket outbound; tidak butuh IP publik, webhook, atau domain berbayar. |
+| **AI Engine** | `openai` SDK (xAI endpoint) | Terhubung ke `https://api.x.ai/v1` dengan model `grok-2-mini` (default cepat & hemat) atau `grok-2`. |
+| **Cloud Hosting** | Render Free Web Service | 750 jam komputasi gratis/bulan (cukup untuk 24/7 sebulan penuh). |
+| **Uptime Keeper** | UptimeRobot (Free) | HTTP(s) monitor mem-ping URL render setiap 5 menit agar container tidak tertidur (*anti-sleep*). |
+| **Version Control & CI/CD** | GitHub + Render Webhooks | Setiap `git push` ke branch `main` langsung memicu auto-deploy instan. |
+| **Knowledge Store** | Local Markdown Files (`knowledge/`) | Dokumen teks murni, minim token, mudah ditinjau sebelum dideploy. |
+
+---
+
+## 4. Mekanisme Hybrid Knowledge Base (Drive to Markdown)
+
+### 4.1 Sumber Data
+* **Folder Google Drive**: `https://drive.google.com/drive/folders/1oF8gzaqV1UUdug08KlkKAPomjHsbRL4q`
+* Berisi file kebijakan kantor, SOP alur kerja, panduan teknis, dan informasi produk/layanan CDPK HQ.
+
+### 4.2 Alur Transformasi ke Markdown
+1. **Pengambilan Dokumen**: File di Google Drive diambil via Google Drive API / tool Antigravity local agent.
+2. **Transformasi**:
+   * Google Docs diekspor langsung ke Markdown.
+   * File PDF dan Word diekstrak teksnya dan diformat dengan heading (`#`, `##`), poin-poin (`-`), dan tabel (`|`).
+3. **Penyaringan & Kurasi (Human-in-the-Loop)**:
+   * Admin memiliki kesempatan memeriksa file `.md` yang dihasilkan di folder `knowledge/`.
+   * Menghapus bagian tidak relevan dan memastikan tidak ada data konfidensial/gaji yang bocor ke publik bot.
+4. **Distribusi**:
+   * File `.md` di-commit dan di-push ke GitHub.
+   * Render secara otomatis memperbarui bot dalam 30 detik tanpa downtime.
+
+### 4.3 Mengapa Strategi Ini Menghemat Biaya?
+* **Zero Processing Cost**: Pemrosesan dokumen mentah tidak menggunakan token xAI API berbayar, melainkan komputasi parser lokal.
+* **Token Efficiency**: File Markdown 60–80% lebih ringkas dibandingkan teks mentah dari PDF/Word.
+* **Peningkatan Akurasi**: Grok secara alami sangat cerdas dalam memahami konteks berstruktur Markdown, mencegah halusinasi.
+
+---
+
+## 5. Fitur Pengguna di Slack (User Features)
+
+### 5.1 Channel Terpusat (`#ask-grok`)
+* Anggota tim berinteraksi dengan me-mention bot: `@Grok <pertanyaan>`.
+* **Thread Context**: Bot selalu membalas di dalam *thread* agar channel tetap rapi, serta membaca hingga 10 riwayat pesan sebelumnya untuk mempertahankan konteks obrolan.
+
+### 5.2 Direct Message (DM 1-on-1)
+* Anggota dapat berkonsultasi secara privat dengan Grok untuk keperluan draf dokumen personal atau pertanyaan kerja spesifik.
+
+### 5.3 UX & Processing Indicator
+* Emoji reaksi `thinking_face` otomatis disematkan pada pesan user saat Grok sedang memproses jawaban, dan dihapus setelah jawaban berhasil terkirim.
+
+---
+
+## 6. Keamanan, Privasi, & Manajemen Rahasia (Security & Governance)
+
+1. **Isolasi Akun Pribadi**:
+   * Bot Slack yang dideploy di cloud **tidak memiliki akses** ke Google Drive pribadi, email Gmail, kalender, maupun file lokal admin.
+   * Bot hanya membaca file yang secara eksplisit sudah dikonversi ke folder `knowledge/` di repositori.
+2. **Manajemen Kredensial**:
+   * Seluruh kredensial (`SLACK_BOT_TOKEN`, `SLACK_APP_TOKEN`, `XAI_API_KEY`) disimpan di *Environment Variables* Render dan dilindungi oleh `.gitignore`.
+3. **Budget Guardrail**:
+   * Admin menetapkan batas pengeluaran bulanan (*Monthly Spending Limit*) di dashboard xAI console untuk mencegah pembengkakan biaya.
+
+---
+
+## 7. Struktur Repositori
+
+```text
+Grok x Slack/
+├── .env                  # Token lokal (tidak masuk git)
+├── .env.example          # Panduan template environment variable
+├── .gitignore            # Mengabaikan .env, venv/, __pycache__/
+├── Dockerfile            # Konfigurasi container cloud (non-root UID 1000)
+├── Procfile              # Worker descriptor
+├── render.yaml           # Blueprint deklaratif Render
+├── requirements.txt      # Dependensi Python (slack-bolt, openai, dll)
+├── app.py                # Aplikasi utama (Slack Socket Mode + Health Server)
+├── PRD.md                # Dokumen PRD resmi (dokumen ini)
+├── README.md             # Dokumentasi umum proyek
+└── knowledge/            # Basis pengetahuan tim CDPK HQ (format .md)
+    ├── README.md         # Panduan kontribusi knowledge
+    └── cdpk_overview.md  # Ringkasan profil & aturan kerja CDPK HQ
+```
+
+---
+
+## 8. Panduan Operasional & Pemeliharaan (Runbook)
+
+### 8.1 Menambah / Memperbarui Dokumen Pengetahuan
+1. Taruh dokumen baru di folder Google Drive kantor.
+2. Minta Antigravity Agent untuk mengonversi dokumen tersebut ke format `.md` di folder `knowledge/`.
+3. Jalankan `git add knowledge/ && git commit -m "Update knowledge: <nama-dokumen>" && git push origin main`.
+4. Render akan otomatis melakukan build dan deploy versi terbaru.
+
+### 8.2 Mengganti Model AI
+* Buka Dashboard Render -> Environment Variables -> ubah `XAI_MODEL`:
+  * `grok-2-mini` : Untuk kecepatan tinggi dan biaya sangat murah (rekomendasi harian).
+  * `grok-2` : Untuk penalaran mendalam dan analisis logika kompleks.
