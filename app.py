@@ -107,14 +107,32 @@ def ask_grok(messages: list) -> str:
         logger.error(f"Error memanggil xAI API: {e}")
         return f"⚠️ Terjadi kendala saat menghubungi Grok API: `{str(e)}`"
 
-def load_knowledge_base() -> str:
-    """Membaca semua file Markdown (.md) di folder knowledge/ sebagai basis pengetahuan resmi CDPK HQ."""
+def load_knowledge_base(user_level: str = "STANDARD") -> str:
+    """Membaca file Markdown (.md) dari subfolder knowledge/ sesuai kategori hak akses penanya:
+    - DIREKSI: memuat subfolder umum, finance, dan direksi (All-Access).
+    - FINANCE: memuat subfolder umum dan finance.
+    - STANDARD: hanya memuat subfolder umum.
+    """
     knowledge_dir = os.path.join(os.path.dirname(__file__), "knowledge")
     if not os.path.exists(knowledge_dir):
         return ""
 
+    if user_level == "DIREKSI":
+        allowed_subfolders = {"umum", "finance", "direksi"}
+    elif user_level == "FINANCE":
+        allowed_subfolders = {"umum", "finance"}
+    else:
+        allowed_subfolders = {"umum"}
+
     docs = []
     for root, _, files in os.walk(knowledge_dir):
+        rel_dir = os.path.relpath(root, knowledge_dir)
+        first_segment = rel_dir.split(os.sep)[0] if rel_dir != "." else "."
+
+        # Jika file berada di subfolder kategori, filter berdasarkan hak akses
+        if first_segment != "." and first_segment not in allowed_subfolders:
+            continue
+
         for file in sorted(files):
             if file.endswith(".md") and file.lower() != "readme.md":
                 path = os.path.join(root, file)
@@ -122,7 +140,8 @@ def load_knowledge_base() -> str:
                     with open(path, "r", encoding="utf-8") as f:
                         content = f.read().strip()
                         if content:
-                            docs.append(f"### DOKUMEN: {file}\n{content}")
+                            category = first_segment.upper() if first_segment != "." else "UMUM"
+                            docs.append(f"### DOKUMEN [{category}]: {file}\n{content}")
                 except Exception as e:
                     logger.warning(f"Gagal membaca knowledge file {file}: {e}")
 
@@ -176,10 +195,9 @@ def get_user_access_level(client, user_id: str) -> dict:
 
 def get_effective_system_prompt(user_access: dict = None) -> str:
     """Menggabungkan System Prompt identitas, Hak Akses Pengguna (3-Tier RBAC), Panduan Rujukan, dan Basis Pengetahuan."""
-    kb = load_knowledge_base()
-
     user_name = user_access.get("name", "Anggota Tim") if user_access else "Anggota Tim"
     user_level = user_access.get("level", "STANDARD") if user_access else "STANDARD"
+    kb = load_knowledge_base(user_level)
 
     if user_level == "DIREKSI":
         rbac_instruction = (

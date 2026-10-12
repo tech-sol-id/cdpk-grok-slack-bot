@@ -289,6 +289,14 @@ def crawl_drive(service, folder_id: str, folder_path: str = "Root", visited: set
         if not page_token:
             break
 
+def get_target_subfolder(access_level: str) -> str:
+    """Mengembalikan nama subfolder khusus berdasarkan kategori hak akses."""
+    if access_level == "DIREKSI_SAJA":
+        return "direksi"
+    elif access_level == "FINANCE_DAN_DIREKSI":
+        return "finance"
+    return "umum"
+
 def process_file(service, file_id: str, mime_type: str, file_name: str, folder_path: str):
     """Mengekstrak dan mengubah file menjadi berkas Markdown pengetahuan terstruktur via Gemini."""
     if file_name.startswith(".") or file_name.lower() in ("desktop.ini", "thumbs.db", ".ds_store"):
@@ -302,23 +310,26 @@ def process_file(service, file_id: str, mime_type: str, file_name: str, folder_p
         return
 
     access_level = determine_access_level(file_name, folder_path)
-    print(f"     🤖 Mengonversi dengan Gemini 3.8 Flash (Tingkat Akses: {access_level})...")
+    subfolder = get_target_subfolder(access_level)
+    target_dir = os.path.join(KNOWLEDGE_DIR, subfolder)
+    os.makedirs(target_dir, exist_ok=True)
+
+    print(f"     🤖 Mengonversi dengan Gemini 3.8 Flash (Tingkat Akses: {access_level} -> {subfolder}/)...")
     md_content = call_gemini(file_name, folder_path, raw_text)
 
     safe_name = sanitize_filename(file_name)
-    prefix = access_level.lower().replace("_saja", "").replace("_dan_direksi", "")
-    target_filename = f"{prefix}_{safe_name}"
-    target_path = os.path.join(KNOWLEDGE_DIR, target_filename)
+    target_path = os.path.join(target_dir, safe_name)
 
     with open(target_path, "w", encoding="utf-8") as f:
         f.write(md_content)
 
-    print(f"     ✅ Berhasil disimpan ke: knowledge/{target_filename}")
+    print(f"     ✅ Berhasil disimpan ke: knowledge/{subfolder}/{safe_name}")
 
 def main():
     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Memulai CDPK HQ Knowledge Ingestion Pipeline")
     print(f"Target Root Folder ID: {FOLDER_ID}")
-    os.makedirs(KNOWLEDGE_DIR, exist_ok=True)
+    for sub in ["direksi", "finance", "umum"]:
+        os.makedirs(os.path.join(KNOWLEDGE_DIR, sub), exist_ok=True)
 
     if not GEMINI_API_KEY:
         print("ERROR: GEMINI_API_KEY belum dikonfigurasi.")
