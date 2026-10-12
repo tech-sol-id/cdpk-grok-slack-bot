@@ -74,13 +74,11 @@ def load_knowledge_base() -> str:
         return "\n\n---\n\n".join(docs)
     return ""
 
-PRIVILEGED_EMAILS = set(
-    [e.strip().lower() for e in os.environ.get("ADMIN_EMAILS", "adrian@citradata.id,hq@techsolutions.id,adrian.kansil@gmail.com").split(",") if e.strip()]
-)
-PRIVILEGED_TITLE_KEYWORDS = ["direktur", "director", "finance manager", "manajer keuangan", "cfo", "ceo", "coo", "cto", "general manager"]
+DIREKSI_IDENTIFIERS = ["gama", "janice", "richard", "adrian"]
+FINANCE_IDENTIFIERS = ["sen sen", "sensen", "ririn", "villa"]
 
 def get_user_access_level(client, user_id: str) -> dict:
-    """Mengecek profil penanya di Slack untuk menentukan level hak akses (RBAC)."""
+    """Mengecek profil penanya di Slack untuk menentukan level hak akses (Direksi, Finance, Standard)."""
     if not user_id:
         return {"level": "STANDARD", "name": "Anggota Tim", "email": ""}
 
@@ -89,38 +87,51 @@ def get_user_access_level(client, user_id: str) -> dict:
         profile = user_info.get("profile", {})
         email = profile.get("email", "").lower().strip()
         real_name = profile.get("real_name") or user_info.get("name", "Anggota Tim")
+        display_name = profile.get("display_name", "")
         title = (profile.get("title") or "").lower()
 
-        is_privileged = False
-        if email and email in PRIVILEGED_EMAILS:
-            is_privileged = True
-        elif any(k in title for k in PRIVILEGED_TITLE_KEYWORDS):
-            is_privileged = True
+        search_str = f"{real_name} {display_name} {email} {title}".lower()
 
-        level = "PRIVILEGED" if is_privileged else "STANDARD"
-        return {"level": level, "name": real_name, "email": email, "title": profile.get("title", "")}
+        # 1. Cek apakah Direksi (Gama, Janice, Richard, Adrian)
+        if any(d in search_str for d in DIREKSI_IDENTIFIERS) or any(t in title for t in ["direktur", "director", "ceo", "cfo", "coo", "cto"]):
+            return {"level": "DIREKSI", "name": real_name, "email": email, "title": profile.get("title", "")}
+
+        # 2. Cek apakah Tim Finance (Sen sen, Ririn, Villa)
+        if any(f in search_str for f in FINANCE_IDENTIFIERS) or any(t in title for t in ["finance", "accounting", "keuangan"]):
+            return {"level": "FINANCE", "name": real_name, "email": email, "title": profile.get("title", "")}
+
+        # 3. Default: Staf / Karyawan Umum
+        return {"level": "STANDARD", "name": real_name, "email": email, "title": profile.get("title", "")}
     except Exception as e:
         logger.warning(f"Gagal mengambil profil user {user_id}: {e}")
         return {"level": "STANDARD", "name": "Anggota Tim", "email": ""}
 
 def get_effective_system_prompt(user_access: dict = None) -> str:
-    """Menggabungkan System Prompt identitas, Hak Akses Pengguna (RBAC), Panduan Rujukan, dan Basis Pengetahuan."""
+    """Menggabungkan System Prompt identitas, Hak Akses Pengguna (3-Tier RBAC), Panduan Rujukan, dan Basis Pengetahuan."""
     kb = load_knowledge_base()
 
     user_name = user_access.get("name", "Anggota Tim") if user_access else "Anggota Tim"
     user_level = user_access.get("level", "STANDARD") if user_access else "STANDARD"
 
-    if user_level == "PRIVILEGED":
+    if user_level == "DIREKSI":
         rbac_instruction = (
-            f"👤 INFORMASI PENANYA: {user_name} (HAK AKSES TINGGI: DIREKSI / FINANCE MANAGER).\n"
-            f"Otoritas: Penanya memiliki wewenang penuh untuk mengakses seluruh informasi kantor, termasuk data keuangan, kompensasi, dan data konfidensial jika ditanyakan."
+            f"👤 IDENTITAS PENANYA: {user_name} (ROLE: DIREKSI CDPK HQ).\n"
+            f"OTORITAS AKSES: TERTINGGI (ALL ACCESS).\n"
+            f"- Penanya memiliki wewenang penuh untuk mengakses SELURUH informasi CDPK HQ tanpa batasan, termasuk dokumen dari folder 'Slack - Khusus Direksi', folder 'Slack - Finance', dokumen 'Gaji', dan seluruh data finansial perusahaan."
+        )
+    elif user_level == "FINANCE":
+        rbac_instruction = (
+            f"👤 IDENTITAS PENANYA: {user_name} (ROLE: TIM FINANCE CDPK HQ).\n"
+            f"OTORITAS AKSES: FINANCE & DOKUMEN UMUM.\n"
+            f"- Penanya BERHAK mengakses dokumen operasional umum, folder 'Slack - Finance', folder 'Finance and Accounting', dan 'Order Management'.\n"
+            f"- BATASAN KETAT: JANGAN PERNAH berikan informasi dari folder 'Slack - Khusus Direksi' atau dokumen dengan judul/tema 'Gaji'. Jika ditanyakan, tolak secara sopan dan jelaskan bahwa dokumen Direksi dan data Penggajian hanya dapat diakses oleh Direksi."
         )
     else:
         rbac_instruction = (
-            f"👤 INFORMASI PENANYA: {user_name} (HAK AKSES STANDAR: STAF / KARYAWAN UMUM).\n"
-            f"ATURAN PRIVASI KETAT:\n"
-            f"- JANGAN PERNAH menyebarkan nominal gaji individu, kompensasi khusus, atau data pribadi karyawan kepada penanya ini.\n"
-            f"- Jika penanya menanyakan data rahasia/gaji orang lain, tolak dengan sangat sopan dan jelaskan bahwa data tersebut bersifat konfidensial dan hanya dapat diakses melalui Direksi atau Finance Manager secara resmi."
+            f"👤 IDENTITAS PENANYA: {user_name} (ROLE: STAF / KARYAWAN UMUM CDPK HQ).\n"
+            f"OTORITAS AKSES: DOKUMEN PUBLIK & OPERASIONAL UMUM SAJA.\n"
+            f"- Penanya HANYA berhak mengakses informasi SOP dan operasional umum (seperti FMTCS, IMS, Operasional umum, panduan produk, dll).\n"
+            f"- BATASAN KETAT: JANGAN PERNAH berikan informasi dari folder 'Finance and Accounting', 'Order Management', 'Slack - Finance', 'Slack - Khusus Direksi', atau informasi bertema 'Gaji'. Jika ditanyakan, tolak dengan sopan dan jelaskan bahwa informasi tersebut bersifat konfidensial dan hanya dapat diakses oleh Tim Finance atau Direksi."
         )
 
     citation_instruction = (

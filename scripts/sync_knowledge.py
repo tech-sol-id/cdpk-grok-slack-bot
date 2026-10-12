@@ -34,8 +34,13 @@ PANDUAN STRUKTUR OUTPUT MARKDOWN:
 sumber_dokumen: "{source_filename}"
 folder_asal: "{folder_name}"
 tanggal_ekstraksi: "{extraction_date}"
-kategori: "Kebijakan & SOP CDPK HQ"
+tingkat_akses: "{tingkat_akses}"
 ---
+
+ATURAN KLASIFIKASI TINGKAT AKSES:
+- "DIREKSI_SAJA": Jika dokumen berasal dari folder "Slack - Khusus Direksi" ATAU judul/isi dokumen membahas tentang "Gaji" / kompensasi.
+- "FINANCE_DAN_DIREKSI": Jika dokumen berasal dari folder "Slack - Finance", "Finance and Accounting", atau "Order Management".
+- "SEMUA_MEMBER": Seluruh dokumen umum lainnya (FMTCS, IMS, Operasional, Sales, POCStar, dll).
 
 2. JUDUL UTAMA (# [Judul Dokumen yang Jelas])
 
@@ -58,6 +63,17 @@ Jika ada singkatan atau terminologi teknis/internal (misal: SLA, KPI, CDPK, SOP)
 Hasilkan Markdown murni tanpa pembuka/penutup percakapan tambahan.
 """
 
+def determine_access_level(source_filename: str, folder_name: str) -> str:
+    """Menentukan klasifikasi izin akses dokumen berdasarkan nama folder dan judul."""
+    fn_lower = source_filename.lower()
+    folder_lower = folder_name.lower()
+
+    if "direksi" in folder_lower or "gaji" in fn_lower:
+        return "DIREKSI_SAJA"
+    if any(k in folder_lower for k in ["finance", "accounting", "order management"]):
+        return "FINANCE_DAN_DIREKSI"
+    return "SEMUA_MEMBER"
+
 def call_gemini(source_filename: str, folder_name: str, raw_content: str) -> str:
     """Memanggil Gemini 3.8 Flash untuk memproses dokumen menjadi Markdown lengkap."""
     if not GEMINI_API_KEY:
@@ -65,10 +81,13 @@ def call_gemini(source_filename: str, folder_name: str, raw_content: str) -> str
         return raw_content
 
     extraction_date = datetime.now().strftime("%Y-%m-%d")
+    tingkat_akses = determine_access_level(source_filename, folder_name)
+
     system_instruction = GEMINI_PROMPT_TEMPLATE.format(
         source_filename=source_filename,
         folder_name=folder_name,
-        extraction_date=extraction_date
+        extraction_date=extraction_date,
+        tingkat_akses=tingkat_akses
     )
 
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={GEMINI_API_KEY}"

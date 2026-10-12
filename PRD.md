@@ -112,12 +112,14 @@ Sistem menggunakan prinsip **Separation of Concerns (Pemisahan Tanggung Jawab)**
 
 ## 5. Fitur Pengguna di Slack (User Features)
 
-### 5.1 Role-Based Access Control (RBAC) Cerdas
-Bot membedakan profil dan hak akses penanya berdasarkan akun Slack (`user_id`, email, dan title profil):
-* **Hak Akses Tinggi (Direksi & Finance Manager)**:
-  * Diizinkan mengakses seluruh informasi konfidensial, nominal keuangan, kompensasi, dan data manajerial jika ditanyakan.
-* **Hak Akses Standar (Karyawan & Tim Umum)**:
-  * Dilindungi aturan privasi ketat: Grok secara otomatis menolak dan membatasi pembagian nominal gaji individu atau rahasia finansial pribadi karyawan lain, serta mengarahkan penanya ke Direksi/Finance secara resmi.
+### 5.1 Role-Based Access Control (RBAC) 3-Tier Cerdas
+Bot membedakan profil dan hak akses penanya berdasarkan akun Slack (`user_id`, nama tampilan, email, dan jabatan profil):
+
+| Level Hak Akses | Anggota Terdaftar | Cakupan Informasi yang Diizinkan | Batasan Ketat |
+| :--- | :--- | :--- | :--- |
+| 👑 **DIREKSI** | Gama, Janice, Richard, Adrian | **ALL ACCESS (Akses Penuh)** ke seluruh dokumen internal: Operasional Umum, `Finance and Accounting`, `Order Management`, `Slack - Finance`, `Slack - Khusus Direksi`, serta data `Gaji`. | Tidak ada batasan. |
+| 💼 **TIM FINANCE** | Sen sen, Ririn, Villa | Dokumen Operasional Umum, folder `Finance and Accounting`, `Order Management`, dan folder `Slack - Finance`. | ❌ **DILARANG AKSES**: Folder `Slack - Khusus Direksi` dan dokumen berjudul/bertema `Gaji`. |
+| 👥 **STAF UMUM** | Anggota tim selain Direksi & Finance | Dokumen Publik & Operasional Umum (FMTCS, IMS, panduan produk, regulasi publik, dll). | ❌ **DILARANG AKSES**: Seluruh data Keuangan, Order Management, Slack - Finance, Khusus Direksi, dan Gaji. |
 
 ### 5.2 Pencatatan & Penyebutan Sumber Referensi (Citations)
 * Setiap kali Grok menjawab pertanyaan seputar kebijakan, SOP, atau regulasi internal, bot **selalu menyebutkan nama file dokumen sumbernya** (berdasarkan metadata header dokumen) agar tim mengetahui dasar rujukan resminya.
