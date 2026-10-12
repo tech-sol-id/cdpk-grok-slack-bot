@@ -28,6 +28,7 @@ jobs:
       - name: Run Drive to Markdown Ingestion
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GDRIVE_CREDENTIALS_JSON: ${{ secrets.GDRIVE_CREDENTIALS_JSON }}
           GDRIVE_FOLDER_ID: "1oF8gzaqV1UUdug08KlkKAPomjHsbRL4q"
         run: |
           python scripts/sync_knowledge.py

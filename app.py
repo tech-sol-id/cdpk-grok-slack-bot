@@ -1,5 +1,7 @@
 import os
 import re
+import json
+import urllib.request
 import logging
 import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
@@ -14,11 +16,13 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("slack-grok-bot")
 
-# Inisialisasi token
+# Inisialisasi token & konfigurasi
 SLACK_BOT_TOKEN = os.environ.get("SLACK_BOT_TOKEN")
 SLACK_APP_TOKEN = os.environ.get("SLACK_APP_TOKEN")
 XAI_API_KEY = os.environ.get("XAI_API_KEY")
 XAI_MODEL = os.environ.get("XAI_MODEL", "grok-2-mini")
+GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
+GITHUB_REPO = os.environ.get("GITHUB_REPO", "tech-sol-id/cdpk-grok-slack-bot")
 SYSTEM_PROMPT = os.environ.get(
     "SYSTEM_PROMPT",
     "Anda adalah asisten AI resmi CDPK HQ yang didukung oleh Grok. Berikan jawaban yang cerdas, solutif, dan profesional."
@@ -37,6 +41,58 @@ ai_client = OpenAI(
 def clean_mention(text: str) -> str:
     """Membersihkan mention <@U12345678> dari teks input pengguna."""
     return re.sub(r"<@[A-Z0-9]+>", "", text).strip()
+
+def is_sync_command(text: str) -> bool:
+    """Mendeteksi apakah teks perintah meminta sinkronisasi atau pembaruan basis pengetahuan."""
+    t = text.lower().strip()
+    keywords = [
+        "update knowledge",
+        "sync knowledge",
+        "sinkronisasi knowledge",
+        "perbarui knowledge",
+        "update dokumen",
+        "sync dokumen",
+        "sync drive",
+        "update drive",
+        "sinkronisasi drive"
+    ]
+    return any(k in t for k in keywords)
+
+def trigger_cloud_sync() -> tuple:
+    """Memicu GitHub Actions workflow untuk menyinkronkan dokumen Google Drive ke Knowledge Base."""
+    token = os.environ.get("GITHUB_TOKEN")
+    repo = os.environ.get("GITHUB_REPO", "tech-sol-id/cdpk-grok-slack-bot")
+
+    if not token:
+        logger.error("GITHUB_TOKEN tidak ditemukan di environment variables.")
+        return False, "GITHUB_TOKEN belum dikonfigurasi di server."
+
+    url = f"https://api.github.com/repos/{repo}/actions/workflows/sync_drive.yml/dispatches"
+    payload = json.dumps({"ref": "main"}).encode("utf-8")
+    req = urllib.request.Request(
+        url,
+        data=payload,
+        headers={
+            "Accept": "application/vnd.github+json",
+            "Authorization": f"Bearer {token}",
+            "User-Agent": "cdpk-grok-slack-bot",
+            "Content-Type": "application/json",
+        },
+        method="POST"
+    )
+
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            if resp.status in (200, 204):
+                return True, "Berhasil memicu workflow sinkronisasi di GitHub Actions."
+            return False, f"Status code tidak terduga: {resp.status}"
+    except urllib.error.HTTPError as e:
+        err_msg = e.read().decode("utf-8") if e.fp else str(e)
+        logger.error(f"Gagal memicu GitHub dispatch (HTTP {e.code}): {err_msg}")
+        return False, f"HTTP {e.code}: {err_msg}"
+    except Exception as e:
+        logger.error(f"Gagal memicu GitHub dispatch: {e}")
+        return False, str(e)
 
 def ask_grok(messages: list) -> str:
     """Mengirim pesan ke xAI Grok API."""
@@ -203,6 +259,33 @@ def handle_mention(event, say, client):
     user_id = event.get("user")
     user_access = get_user_access_level(client, user_id)
 
+    # 1. Pengecekan Perintah Khusus: Sinkronisasi / Update Knowledge Base dari Drive
+    if is_sync_command(user_text):
+        if user_access.get("level") == "DIREKSI":
+            success, msg = trigger_cloud_sync()
+            if success:
+                reply = (
+                    "🚀 *Sinkronisasi Cloud Dimulai!*\n\n"
+                    "Permintaan konversi dokumen Google Drive -> Markdown resmi via **Gemini 3.8 Flash** "
+                    "telah berhasil dikirim ke cloud (GitHub Actions).\n\n"
+                    "• Dokumen dari Google Drive (termasuk folder shortcut & dokumen baru) sedang diekstraksi.\n"
+                    "• Dokumen akan dilengkapi ringkasan, struktur lengkap, FAQ otomatis, dan aturan hak akses 3-tier.\n"
+                    "• Grok akan secara otomatis memperbarui memori knowledge base segera setelah proses selesai (~2-3 menit)."
+                )
+            else:
+                reply = f"⚠️ Gagal memicu sinkronisasi cloud: `{msg}`"
+        else:
+            reply = (
+                "🔒 *Akses Dibatasi*\n"
+                "Perintah pembaruan/sinkronisasi basis pengetahuan Google Drive hanya dapat dijalankan oleh jajaran *Direksi* CDPK HQ."
+            )
+        say(text=reply, thread_ts=thread_ts)
+        try:
+            client.reactions_remove(channel=channel, timestamp=event["ts"], name="thinking_face")
+        except Exception:
+            pass
+        return
+
     # Ambil konteks jika berada dalam thread, atau buat percakapan baru
     if "thread_ts" in event:
         conversation = get_thread_context(client, channel, thread_ts, bot_user_id, user_access)
@@ -242,6 +325,33 @@ def handle_direct_message(event, say, client):
 
     user_id = event.get("user")
     user_access = get_user_access_level(client, user_id)
+
+    # 1. Pengecekan Perintah Khusus: Sinkronisasi / Update Knowledge Base dari Drive via DM
+    if is_sync_command(user_text):
+        if user_access.get("level") == "DIREKSI":
+            success, msg = trigger_cloud_sync()
+            if success:
+                reply = (
+                    "🚀 *Sinkronisasi Cloud Dimulai!*\n\n"
+                    "Permintaan konversi dokumen Google Drive -> Markdown resmi via **Gemini 3.8 Flash** "
+                    "telah berhasil dikirim ke cloud (GitHub Actions).\n\n"
+                    "• Dokumen dari Google Drive (termasuk folder shortcut & dokumen baru) sedang diekstraksi.\n"
+                    "• Dokumen akan dilengkapi ringkasan, struktur lengkap, FAQ otomatis, dan aturan hak akses 3-tier.\n"
+                    "• Grok akan secara otomatis memperbarui memori knowledge base segera setelah proses selesai (~2-3 menit)."
+                )
+            else:
+                reply = f"⚠️ Gagal memicu sinkronisasi cloud: `{msg}`"
+        else:
+            reply = (
+                "🔒 *Akses Dibatasi*\n"
+                "Perintah pembaruan/sinkronisasi basis pengetahuan Google Drive hanya dapat dijalankan oleh jajaran *Direksi* CDPK HQ."
+            )
+        say(text=reply)
+        try:
+            client.reactions_remove(channel=event["channel"], timestamp=event["ts"], name="thinking_face")
+        except Exception:
+            pass
+        return
 
     conversation = [
         {"role": "system", "content": get_effective_system_prompt(user_access)},
