@@ -128,6 +128,12 @@ Bot membedakan profil dan hak akses penanya berdasarkan akun Slack (`user_id`, n
 * Anggota tim berinteraksi dengan me-mention bot: `@Grok <pertanyaan>` di channel `#ask-grok` (membalas di thread) atau berkonsultasi privat melalui Direct Message (DM 1-on-1).
 * **Indikator UX**: Emoji reaksi `thinking_face` otomatis disematkan saat Grok sedang memproses jawaban.
 
+### 5.4 Pemicu Sinkronisasi & Konversi Dokumen Langsung dari Slack
+* **Perintah**: `@grok update knowledge` atau `@grok sync knowledge` (bisa di channel maupun via DM).
+* **Verifikasi Otoritas**:
+  * **Direksi** (Gama, Janice, Richard, Adrian): Bot langsung merespons dan memicu GitHub Actions (`workflow_dispatch`) di cloud. Pipeline berjalan di background (~2-3 menit) untuk mengambil file dari Google Drive (termasuk folder shortcut), memprosesnya dengan **Gemini 3.8 Flash**, dan meng-commit hasilnya ke GitHub yang otomatis memperbarui memori Grok.
+  * **Staf / Finance**: Bot menolak secara sopan dan menjelaskan bahwa perintah pembaruan knowledge base hanya dapat dijalankan oleh jajaran Direksi.
+
 ---
 
 ## 6. Keamanan, Privasi, & Manajemen Rahasia (Security & Governance)
