@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: cdpk-grok-slack-bot
+    runtime: docker
+    plan: free
+    region: singapore
+    envVars:
+      - key: SLACK_BOT_TOKEN
+        sync: false
+      - key: SLACK_APP_TOKEN
+        sync: false
+      - key: XAI_API_KEY
+        sync: false
+      - key: XAI_MODEL
+        value: grok-2-mini
+      - key: SYSTEM_PROMPT
+        value: "Anda adalah asisten AI resmi CDPK HQ yang didukung oleh Grok. Berikan jawaban yang cerdas, ringkas, solutif, dan profesional."
