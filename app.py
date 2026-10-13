@@ -167,11 +167,28 @@ def retrieve_relevant_knowledge(query: str, user_level: str = "STANDARD", top_k:
     raw_tokens = [t.lower() for t in re.findall(r'[a-zA-Z0-9]+', query) if len(t) >= 2]
     stop_words = {
         "apa", "dan", "yang", "di", "ke", "dari", "ini", "itu", "untuk", "pada", "adalah",
-        "saya", "bisa", "bagaimana", "apakah", "ttg", "tentang", "jelaskan", "tolong", "info", "kasih"
+        "saya", "bisa", "bagaimana", "apakah", "ttg", "tentang", "jelaskan", "tolong", "info", "kasih",
+        "minta", "berikan", "kirim", "lihat", "cari", "tampilkan", "sebutkan", "dong", "ya", "mohon", "cek"
     }
     search_tokens = [t for t in raw_tokens if t not in stop_words and len(t) >= 3]
     if not search_tokens:
         search_tokens = raw_tokens
+
+    # Deteksi kode model/produk (mengandung kombinasi huruf & angka, misal 'is440', 'slr5000', 'rg170')
+    product_codes = [t for t in raw_tokens if any(c.isdigit() for c in t) and any(c.isalpha() for c in t)]
+
+    # Sinonim istilah teknis dari Bahasa Indonesia ke Bahasa Inggris untuk dokumen internasional
+    synonyms = {
+        "spesifikasi": ["specification", "specifications", "technical features", "datasheet", "features"],
+        "spek": ["specification", "specifications", "technical features", "datasheet"],
+        "brosur": ["brochure", "flyer"],
+        "panduan": ["manual", "guide", "operating manual"],
+        "instruksi": ["instructions", "safety"],
+    }
+    expanded_tokens = list(search_tokens)
+    for st in search_tokens:
+        if st in synonyms:
+            expanded_tokens.extend(synonyms[st])
 
     phrases = []
     for t in raw_tokens:
@@ -204,15 +221,26 @@ def retrieve_relevant_knowledge(query: str, user_level: str = "STANDARD", top_k:
                 score = 0.0
                 matched_token_count = 0
 
-                # 1. Matching frasa khusus (contoh 'rg 170')
+                # 1. Product code matching (sangat spesifik, prioritas tertinggi)
+                for pc in product_codes:
+                    if pc in fn_lower:
+                        score += 800.0
+                        matched_token_count += 2
+                    elif pc in content_lower:
+                        score += 400.0
+                        matched_token_count += 1
+
+                # 2. Matching frasa khusus (contoh 'rg 170', 'is 440')
                 for ph in phrases:
                     if ph in fn_lower:
-                        score += 150.0
+                        score += 300.0
+                        matched_token_count += 1
                     elif ph in content_lower:
-                        score += 80.0
+                        score += 150.0
+                        matched_token_count += 1
 
-                # 2. Matching token dengan word boundary agar presisi (misal 'visi' tidak mencocokkan 'divisi')
-                for t in search_tokens:
+                # 3. Matching token pencarian & sinonim teknis
+                for t in expanded_tokens:
                     in_fn = t in fn_lower
                     c = len(re.findall(r'\b' + re.escape(t) + r'\b', content_lower))
                     if in_fn or c > 0:
@@ -222,22 +250,23 @@ def retrieve_relevant_knowledge(query: str, user_level: str = "STANDARD", top_k:
                         if c > 0:
                             score += (1.0 + math.log(c)) * 25.0
 
-                # 3. Multi-token correlation bonus (jika dokumen memuat beberapa kata kunci pencarian sekaligus)
+                # 4. Multi-token correlation bonus
                 if matched_token_count == len(search_tokens) and len(search_tokens) >= 2:
                     score += 250.0
                 elif matched_token_count >= 2:
                     score += matched_token_count * 60.0
 
-                # 4. Boost dokumen overview / profil / materi training agar lebih diprioritaskan dibanding datasheet teknis lepasan
-                if any(w in fn_lower for w in ["cdpk_overview", "businessprospect", "prospect", "training", "katalog", "profile"]):
-                    score += 150.0
+                # 5. Boost dokumen profil/overview HANYA jika bukan pencarian kode produk spesifik
+                if not product_codes:
+                    if any(w in fn_lower for w in ["cdpk_overview", "businessprospect", "prospect", "training", "katalog", "profile"]):
+                        score += 150.0
 
-                if "cdpk_overview" in fn_lower:
-                    score += 200.0
+                    if "cdpk_overview" in fn_lower:
+                        score += 200.0
 
                 if score > 0:
                     category = first_segment.upper() if first_segment != "." else "UMUM"
-                    snippet = extract_smart_snippet(content, search_tokens)
+                    snippet = extract_smart_snippet(content, search_tokens + product_codes)
                     scored_docs.append((score, file, category, snippet))
             except Exception as e:
                 logger.warning(f"Gagal membaca file .md {file}: {e}")
