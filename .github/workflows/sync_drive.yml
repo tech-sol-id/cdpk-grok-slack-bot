@@ -24,7 +24,7 @@ jobs:
       - name: Install Dependencies
         run: |
           pip install --upgrade pip
-          pip install google-api-python-client google-auth pypdf python-docx
+          pip install google-api-python-client google-auth pypdf python-docx openpyxl python-pptx
 
       - name: Run Drive to Markdown Ingestion
         env:

@@ -25,6 +25,8 @@ import urllib.parse
 import re
 from datetime import datetime
 
+import base64
+
 try:
     from google.oauth2.credentials import Credentials
     from googleapiclient.discovery import build
@@ -43,6 +45,16 @@ try:
     import docx
 except ImportError:
     docx = None
+
+try:
+    import openpyxl
+except ImportError:
+    openpyxl = None
+
+try:
+    from pptx import Presentation
+except ImportError:
+    Presentation = None
 
 FOLDER_ID = os.environ.get("GDRIVE_FOLDER_ID", "1oF8gzaqV1UUdug08KlkKAPomjHsbRL4q")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
@@ -190,6 +202,62 @@ def call_gemini(source_filename: str, folder_name: str, raw_content: str, file_i
     
     return raw_content
 
+def call_gemini_multimodal(source_filename: str, folder_name: str, file_bytes: bytes, mime_type: str, file_id: str = "", modified_time: str = "") -> str:
+    """Memanggil Gemini 3.8 Flash secara multimodal (untuk PDF pindaian gambar / dokumen visual)."""
+    if not GEMINI_API_KEY:
+        return ""
+
+    extraction_date = datetime.now().strftime("%Y-%m-%d")
+    tingkat_akses = determine_access_level(source_filename, folder_name)
+
+    system_instruction = GEMINI_PROMPT_TEMPLATE.format(
+        source_filename=source_filename,
+        file_id=file_id,
+        modified_time=modified_time,
+        folder_name=folder_name,
+        extraction_date=extraction_date,
+        tingkat_akses=tingkat_akses
+    )
+
+    b64_data = base64.b64encode(file_bytes).decode("utf-8")
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={GEMINI_API_KEY}"
+    payload = {
+        "contents": [
+            {
+                "parts": [
+                    {"text": system_instruction},
+                    {
+                        "inline_data": {
+                            "mime_type": mime_type,
+                            "data": b64_data
+                        }
+                    }
+                ]
+            }
+        ]
+    }
+
+    req = urllib.request.Request(
+        url,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST"
+    )
+
+    try:
+        with urllib.request.urlopen(req, timeout=120) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            candidates = data.get("candidates", [])
+            if candidates:
+                parts = candidates[0].get("content", {}).get("parts", [])
+                result_text = "".join([part.get("text", "") for part in parts])
+                if result_text.strip():
+                    return result_text.strip()
+    except Exception as e:
+        print(f"Error saat memanggil Gemini Multimodal untuk {source_filename}: {e}")
+
+    return ""
+
 def sanitize_filename(name: str) -> str:
     """Membersihkan nama file agar aman disimpan di sistem berkas tanpa memotong nama yang mengandung titik."""
     clean_name = name
@@ -309,12 +377,63 @@ def extract_file_content(service, file_id: str, mime_type: str, file_name: str) 
             paragraphs = [p.text for p in doc.paragraphs if p.text.strip()]
             return "\n\n".join(paragraphs)
 
+        elif mime_type == "application/vnd.google-apps.presentation":
+            res = service.files().export_media(fileId=file_id, mimeType="text/plain").execute()
+            return res.decode("utf-8", errors="ignore")
+
+        elif mime_type == "application/vnd.openxmlformats-officedocument.presentationml.presentation" and Presentation:
+            res = service.files().get_media(fileId=file_id, supportsAllDrives=True).execute()
+            prs = Presentation(io.BytesIO(res))
+            slides_text = []
+            for idx, slide in enumerate(prs.slides, 1):
+                slide_parts = []
+                for shape in slide.shapes:
+                    if shape.has_text_frame:
+                        for paragraph in shape.text_frame.paragraphs:
+                            t = paragraph.text.strip()
+                            if t:
+                                slide_parts.append(t)
+                    elif shape.has_table:
+                        for row in shape.table.rows:
+                            row_txt = [cell.text.strip() for cell in row.cells if cell.text.strip()]
+                            if row_txt:
+                                slide_parts.append(" | ".join(row_txt))
+                if slide_parts:
+                    slides_text.append(f"--- Slide {idx} ---\n" + "\n".join(slide_parts))
+            return "\n\n".join(slides_text)
+
+        elif mime_type in (
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "application/vnd.ms-excel",
+            "application/vnd.ms-excel.sheet.macroenabled.12"
+        ) and openpyxl:
+            res = service.files().get_media(fileId=file_id, supportsAllDrives=True).execute()
+            wb = openpyxl.load_workbook(io.BytesIO(res), data_only=True, read_only=True)
+            sheets_text = []
+            for sheetname in wb.sheetnames[:5]:
+                ws = wb[sheetname]
+                rows_text = []
+                row_count = 0
+                for row in ws.iter_rows(values_only=True):
+                    if not any(row):
+                        continue
+                    row_vals = [str(val).strip() if val is not None else "" for val in row]
+                    if any(row_vals):
+                        rows_text.append(" | ".join(row_vals))
+                        row_count += 1
+                    if row_count >= 150:
+                        rows_text.append("... [baris selanjutnya dipotong untuk ringkasan] ...")
+                        break
+                if rows_text:
+                    sheets_text.append(f"### Sheet: {sheetname}\n" + "\n".join(rows_text))
+            return "\n\n".join(sheets_text)
+
         elif mime_type in (
             "application/vnd.google-apps.presentation",
             "application/vnd.openxmlformats-officedocument.presentationml.presentation",
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         ):
-            print(f"     ⏭️ Dilewati (format biner {mime_type}).")
+            print(f"     ⏭️ Dilewati (library parser belum terpasang).")
             return ""
 
     except Exception as e:
@@ -418,7 +537,31 @@ def process_file(service, file_id: str, mime_type: str, file_name: str, folder_p
     raw_text = extract_file_content(service, file_id, mime_type, file_name)
 
     if not raw_text or len(raw_text.strip()) < 40:
-        print(f"     ⏭️ Dilewati (konten teks terlalu singkat atau kosong).")
+        if mime_type == "application/pdf":
+            try:
+                res_bytes = service.files().get_media(fileId=file_id, supportsAllDrives=True).execute()
+                if len(res_bytes) < 15 * 1024 * 1024:
+                    print(f"     📸 Memproses PDF pindaian gambar via Gemini Vision OCR...")
+                    md_content = call_gemini_multimodal(file_name, folder_path, res_bytes, "application/pdf", file_id, modified_time)
+                    if md_content and len(md_content.strip()) >= 50:
+                        with open(target_path, "w", encoding="utf-8") as f:
+                            f.write(md_content)
+                        print(f"     💾 Tersimpan di repo: knowledge/{subfolder}/{safe_name}")
+                        drive_parent = DRIVE_SUBFOLDERS.get(access_level)
+                        if drive_parent:
+                            upload_to_drive(service, drive_parent, safe_name, md_content)
+                        manifest[file_id] = {
+                            "name": file_name,
+                            "subfolder": subfolder,
+                            "filename": safe_name,
+                            "target_path": os.path.relpath(target_path, os.path.dirname(KNOWLEDGE_DIR)),
+                            "modified_time": modified_time,
+                            "synced_at": datetime.now().isoformat()
+                        }
+                        return
+            except Exception as e:
+                print(f"Peringatan: Gagal OCR PDF {file_name}: {e}")
+        print(f"     ⏭️ Dilewati (konten teks terlalu singkat atau format tidak didukung).")
         return
 
     print(f"     🤖 Mengonversi dengan Gemini 3.8 Flash (Kategori Akses: {access_level} -> {subfolder}/)...")

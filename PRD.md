@@ -88,6 +88,11 @@ Sistem menggunakan prinsip **Separation of Concerns (Pemisahan Tanggung Jawab)**
 ### 4.1 Sumber Data
 * **Folder Utama Google Drive**: `https://drive.google.com/drive/folders/1oF8gzaqV1UUdug08KlkKAPomjHsbRL4q`
 * Berisi file kebijakan kantor, SOP alur kerja, panduan teknis, dan informasi produk/layanan CDPK HQ.
+* **Format Berkas yang Didukung**:
+  * **Google Workspace**: Google Docs, Google Sheets, dan Google Slides.
+  * **Microsoft Office**: Word (`.docx`), Excel (`.xlsx`, `.xls`), dan PowerPoint (`.pptx`).
+  * **PDF**: PDF berbasis teks (digital) dan PDF pindaian fisik (via Gemini Vision OCR).
+  * **Teks & Data**: Plain text (`.txt`) dan format tabular (`.csv`).
 * **Resolusi Shortcut**: Mendukung shortcut folder (`application/vnd.google-apps.shortcut`) via Google Drive API `shortcutDetails.targetId`. Tidak perlu menduplikasi berkas dari shared drive lain.
 
 ### 4.2 Mandat Tugas Gemini 3.8 Flash
