@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
 from openai import OpenAI
+from doc_engine import generate_bom_excel, generate_proposal_docx, upload_document_to_slack, DOC_TOOLS
 
 # Muat variabel environment dari .env
 load_dotenv()
@@ -150,15 +151,85 @@ def extract_slack_media(client, event: dict) -> list:
 
     return media_items
 
-def ask_grok(messages: list) -> str:
-    """Mengirim pesan ke xAI Grok API."""
+def ask_grok(messages: list, client=None, channel: str = None, thread_ts: str = None) -> str:
+    """Mengirim pesan ke xAI Grok API dengan dukungan Tool Calling untuk Document Generation."""
     try:
         response = ai_client.chat.completions.create(
             model=XAI_MODEL,
             messages=messages,
+            tools=DOC_TOOLS,
+            tool_choice="auto",
             temperature=0.7,
         )
-        return response.choices[0].message.content
+        msg = response.choices[0].message
+
+        # Jika Grok memanggil tool untuk membuat file Excel BOM atau Word Proposal
+        if msg.tool_calls:
+            tool_call_messages = list(messages)
+            tool_call_messages.append(msg)
+            uploaded_notices = []
+
+            for tc in msg.tool_calls:
+                fn_name = tc.function.name
+                fn_args = json.loads(tc.function.arguments)
+                tool_output_str = ""
+
+                if fn_name == "generate_bom_excel":
+                    pname = fn_args.get("project_name", "Proyek_CDPK")
+                    cname = fn_args.get("client_name", "")
+                    items = fn_args.get("items", [])
+                    fpath = generate_bom_excel(pname, cname, items)
+                    fname = os.path.basename(fpath)
+                    tool_output_str = f"File Excel BOM '{fname}' berhasil dibuat."
+                    if client and channel:
+                        ok = upload_document_to_slack(
+                            client, channel, thread_ts, fpath,
+                            title=f"BOM Excel - {pname}",
+                            initial_comment=f"📊 *File Excel Bill of Materials (BOM) resmi CDPK HQ* untuk proyek *{pname}* telah selesai dibuat dan siap diunduh:"
+                        )
+                        if ok:
+                            uploaded_notices.append(f"• File Excel BOM: `{fname}` (telah diunggah ke chat)")
+                        else:
+                            uploaded_notices.append(f"• File Excel BOM `{fname}` berhasil dibuat di server.")
+
+                elif fn_name == "generate_proposal_docx":
+                    pname = fn_args.get("project_name", "Proyek_CDPK")
+                    cname = fn_args.get("client_name", "")
+                    scope = fn_args.get("scope_summary", "")
+                    topo = fn_args.get("topology_description", "")
+                    items = fn_args.get("items", [])
+                    notes = fn_args.get("technical_notes", "")
+                    fpath = generate_proposal_docx(pname, cname, scope, topo, items, notes)
+                    fname = os.path.basename(fpath)
+                    tool_output_str = f"Dokumen Word Proposal '{fname}' berhasil dibuat."
+                    if client and channel:
+                        ok = upload_document_to_slack(
+                            client, channel, thread_ts, fpath,
+                            title=f"Proposal Teknis Word - {pname}",
+                            initial_comment=f"📄 *Dokumen Proposal Desain Teknis Word (.docx) resmi CDPK HQ* untuk proyek *{pname}* telah selesai dibuat dan siap diunduh:"
+                        )
+                        if ok:
+                            uploaded_notices.append(f"• Dokumen Word Proposal: `{fname}` (telah diunggah ke chat)")
+                        else:
+                            uploaded_notices.append(f"• Dokumen Word `{fname}` berhasil dibuat di server.")
+
+                tool_call_messages.append({
+                    "role": "tool",
+                    "tool_call_id": tc.id,
+                    "content": tool_output_str
+                })
+
+            final_resp = ai_client.chat.completions.create(
+                model=XAI_MODEL,
+                messages=tool_call_messages,
+                temperature=0.7,
+            )
+            content = final_resp.choices[0].message.content or ""
+            if uploaded_notices:
+                content += "\n\n" + "\n".join(uploaded_notices)
+            return content
+
+        return msg.content or ""
     except Exception as e:
         logger.error(f"Error memanggil xAI API: {e}")
         return f"⚠️ Terjadi kendala saat menghubungi Grok API: `{str(e)}`"
@@ -429,16 +500,25 @@ def get_effective_system_prompt(user_access: dict = None, query: str = "") -> st
     )
 
     solution_architect_instruction = (
-        "🧠 KAPABILITAS ANALISIS & REASONING TEKNIK (SOLUTIONS ARCHITECT CDPK HQ):\n"
-        "1. ANALISIS MULTIMODAL & TOPOLOGI: Jika pengguna melampirkan gambar skema, denah gedung/hotel, blueprint arsitektur, atau riser diagram kabel (atau menanyakan rekomendasi desain topologi):\n"
-        "   - Analisis struktur yang terlihat pada gambar/lampiran (jumlah lantai, zona, basement, rute riser kabel vertikal, serta area jangkauan yang dibutuhkan).\n"
-        "   - Lakukan reasoning teknis pemilihan arsitektur Distributed Antenna System (DAS):\n"
-        "     * Active Optical DAS: Gunakan FMTCS OMU (Optical Master Unit - LRFN-DOMU400C / AOMU400C) di ruang server/rack utama dan FMTCS ORU (Optical Remote Unit - LRFF-DORU400CH / AORU400CH) di riser per lantai/zona via kabel fiber optik untuk mengatasi pelemahan jarak jauh.\n"
-        "     * Passive Distribution: Gunakan FMTCS Coupler (Directional Coupler CP-PD-400R) dan Splitter (Power Splitter UDSS400C / CP-PD-400R) untuk membagi daya RF ke kabel coaxial feeder.\n"
-        "     * Antena: Gunakan FMTCS Indoor Omni Antenna (ANTI400R) di koridor/kamar hotel dan Outdoor Directional Antenna (ANTX400R) untuk donor sinyal/eksterior.\n"
-        "     * Radio Repeater: Integrasikan dengan repeater Motorola Solutions MOTOTRBO (SLR 5000 / SLR 8000 / XPR 8400).\n"
-        "   - Sajikan rekomendasi terstruktur: (A) Analisis Kebutuhan Arsitektur Bangunan, (B) Rekomendasi Topologi Sistem, (C) Estimasi Daftar Perangkat / Bill of Materials (BOM) FMTCS & Motorola yang cocok, dan (D) Catatan Teknis & Praktik Terbaik Instalasi.\n"
-        "2. SINTESIS DATA CERDAS: Gabungkan pengamatan visual gambar topologi dengan spesifikasi teknis dari dokumen resmi Markdown (.md) yang tersedia di basis pengetahuan untuk menghasilkan solusi rekayasa (engineering proposal) yang kredibel dan aplikatif."
+        "🧠 KAPABILITAS MULTI-REASONING EKSEKUTIF, TEKNIS & BISNIS (CDPK HQ STRATEGIC CO-PILOT):\n"
+        "1. ANALISIS MULTIMODAL & REKAYASA TOPOLOGI (SOLUTIONS ARCHITECT):\n"
+        "   - Analisis visual denah/blueprint/riser diagram gedung/hotel/pabrik (lantai, zona, basement, riser kabel vertikal, head-end server room).\n"
+        "   - Reasoning arsitektur DAS & Radio: Active Optical DAS (FMTCS OMU & ORU via fiber optik untuk eliminasi redaman bentang jauh), Passive RF Distribution (FMTCS Coupler CP-PD-400R & Splitter UDSS400C), Antena Omni Indoor (ANTI400R), dan Repeater Motorola MOTOTRBO (SLR 5000 / SLR 8000).\n"
+        "2. REASONING FISIKA SINYAL & RF LINK BUDGET:\n"
+        "   - Hitung estimasi redaman: Free Space Path Loss (FSPL), pelemahan kabel coaxial per 100m vs fiber optik, dan target kuat sinyal indoor minimal -95 dBm untuk DMR digital tanpa blind-spot.\n"
+        "3. REASONING STRATEGI BISNIS, TENDER & CLOSING PENJUALAN:\n"
+        "   - Susun proposal dengan 'Win-Themes' teruji: Sertifikasi ISO 9001/14001/45001 Citradata, 30+ tahun distributor & Authorized Service Center Motorola resmi sejak 1993, dan garansi suku cadang original.\n"
+        "   - Bedah keunggulan kompetitif (Battlecard) menghadapi kompetitor lain (Hytera/Kenwood/radio unbranded) dengan menonjolkan Total Cost of Ownership (TCO) dan keandalan industri.\n"
+        "4. REASONING KEPATUHAN REGULASI & KESELAMATAN INDUSTRI:\n"
+        "   - Regulasi frekuensi SDPPI/Kominfo (VHF/UHF, izin stasiun radio ISR).\n"
+        "   - Standar proteksi ledakan ATEX / IECEx Zone 1/21 vs Zone 2/22 untuk sektor Migas (Pertamina), Pupuk, dan Tambang menggunakan perangkat i.Safe Mobile Intrinsically Safe.\n"
+        "5. REASONING OPERASIONAL, SUPPLY CHAIN & LAYANAN PURNA JUAL (ASC):\n"
+        "   - Lead time pengadaan komponen impor vs jadwal serah terima (FAT/SAT).\n"
+        "   - Garansi resmi, SLA pemeliharaan berkala, dan turn-around time (TAT) perbaikan di lab resmi Citradata.\n"
+        "6. REASONING MIGRASI HIBRIDA BERTAHAP (ANALOG -> DMR -> POCSTAR):\n"
+        "   - Tawarkan skema transisi bertahap: integrasikan radio analog lawas ke Digital DMR Tier II/III, serta pasangkan gateway ke aplikasi Push-to-Talk over Cellular (POCStar/Broadband) agar investasi eksisting klien terlindungi.\n"
+        "7. GENERATE DOKUMEN OTOMATIS (EXCEL BOM & WORD PROPOSAL):\n"
+        "   - Jika pengguna meminta membuat dokumen, file Excel, BOM, spreadsheet, proposal Word, atau penawaran harga, PANGGIL TOOL 'generate_bom_excel' atau 'generate_proposal_docx' dengan data yang rapi dan terstruktur!"
     )
 
     prompt_parts = [
@@ -552,8 +632,8 @@ def handle_mention(event, say, client):
             {"role": "user", "content": user_content}
         ]
 
-    # Dapatkan jawaban dari Grok
-    reply = ask_grok(conversation)
+    # Dapatkan jawaban dari Grok (dengan dukungan tool calling untuk generate Excel BOM & Word Proposal)
+    reply = ask_grok(conversation, client=client, channel=channel, thread_ts=thread_ts)
 
     # Kirim balasan selalu di dalam thread agar rapi
     say(text=reply, thread_ts=thread_ts)
@@ -618,7 +698,7 @@ def handle_direct_message(event, say, client):
         {"role": "user", "content": user_content}
     ]
 
-    reply = ask_grok(conversation)
+    reply = ask_grok(conversation, client=client, channel=event["channel"], thread_ts=None)
     say(text=reply)
 
     try:
