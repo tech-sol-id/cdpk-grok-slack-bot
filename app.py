@@ -108,6 +108,45 @@ def ask_grok(messages: list) -> str:
         logger.error(f"Error memanggil xAI API: {e}")
         return f"⚠️ Terjadi kendala saat menghubungi Grok API: `{str(e)}`"
 
+def extract_smart_snippet(content: str, query_tokens: list, max_length: int = 5000) -> str:
+    """Mengekstrak cuplikan cerdas yang berfokus pada bagian dokumen dengan kemunculan kata kunci terbanyak."""
+    if len(content) <= max_length:
+        return content
+
+    content_lower = content.lower()
+    match_positions = []
+    for t in query_tokens:
+        if len(t) < 3:
+            continue
+        try:
+            for m in re.finditer(r'\b' + re.escape(t) + r'\b', content_lower):
+                match_positions.append(m.start())
+        except Exception:
+            pass
+
+    if not match_positions:
+        return content[:max_length]
+
+    match_positions.sort()
+    best_pos = match_positions[0]
+    max_in_window = 0
+    window_span = 2500
+
+    for pos in match_positions:
+        count = sum(1 for p in match_positions if pos <= p <= pos + window_span)
+        if count > max_in_window:
+            max_in_window = count
+            best_pos = pos
+
+    start_pos = max(0, best_pos - 600)
+    end_pos = min(len(content), start_pos + max_length - 600)
+    header = content[:400].strip()
+
+    if start_pos <= 400:
+        return content[:max_length]
+    else:
+        return f"{header}\n\n[... bagian dokumen sebelumnya dilewati ...]\n\n{content[start_pos:end_pos]}"
+
 def retrieve_relevant_knowledge(query: str, user_level: str = "STANDARD", top_k: int = 7) -> str:
     """Mencari dokumen paling relevan dengan pertanyaan pengguna berdasarkan hak akses:
     - DIREKSI: mencari di subfolder umum, finance, dan direksi.
@@ -126,12 +165,15 @@ def retrieve_relevant_knowledge(query: str, user_level: str = "STANDARD", top_k:
         allowed_subfolders = {"umum"}
 
     raw_tokens = [t.lower() for t in re.findall(r'[a-zA-Z0-9]+', query) if len(t) >= 2]
-    tokens = set(raw_tokens)
+    stop_words = {"apa", "dan", "yang", "di", "ke", "dari", "ini", "itu", "untuk", "pada", "adalah", "saya", "bisa", "bagaimana", "apakah"}
+    search_tokens = [t for t in raw_tokens if t not in stop_words and len(t) >= 3]
+    if not search_tokens:
+        search_tokens = raw_tokens
+
     phrases = []
     for t in raw_tokens:
         split_parts = re.findall(r'[a-zA-Z]+|\d+', t)
         if len(split_parts) > 1:
-            tokens.update(split_parts)
             phrases.append(" ".join(split_parts))
 
     scored_docs = []
@@ -157,6 +199,7 @@ def retrieve_relevant_knowledge(query: str, user_level: str = "STANDARD", top_k:
                 content_lower = content.lower()
 
                 score = 0.0
+                matched_token_count = 0
 
                 # 1. Matching frasa khusus (contoh 'rg 170')
                 for ph in phrases:
@@ -165,21 +208,30 @@ def retrieve_relevant_knowledge(query: str, user_level: str = "STANDARD", top_k:
                     elif ph in content_lower:
                         score += 80.0
 
-                # 2. Matching token dengan bobot nama file & log-frequency isi
-                for t in tokens:
-                    if t in fn_lower:
-                        score += 60.0 if len(t) > 3 else 20.0
-                    c = content_lower.count(t)
-                    if c > 0:
-                        score += (1.0 + math.log(c)) * (8.0 if len(t) > 3 else 2.0)
+                # 2. Matching token dengan word boundary agar presisi (misal 'visi' tidak mencocokkan 'divisi')
+                for t in search_tokens:
+                    in_fn = t in fn_lower
+                    c = len(re.findall(r'\b' + re.escape(t) + r'\b', content_lower))
+                    if in_fn or c > 0:
+                        matched_token_count += 1
+                        if in_fn:
+                            score += 80.0
+                        if c > 0:
+                            score += (1.0 + math.log(c)) * 25.0
 
-                # 3. Boost profil umum jika mencari tentang perusahaan
-                if "cdpk_overview" in fn_lower and any(k in tokens for k in ["cdpk", "siapa", "profil", "tentang", "perusahaan"]):
-                    score += 50.0
+                # 3. Multi-token correlation bonus (jika dokumen memuat beberapa kata kunci pencarian sekaligus)
+                if matched_token_count == len(search_tokens) and len(search_tokens) >= 2:
+                    score += 250.0
+                elif matched_token_count >= 2:
+                    score += matched_token_count * 60.0
+
+                # 4. Boost profil umum jika mencari tentang perusahaan
+                if "cdpk_overview" in fn_lower and any(k in search_tokens for k in ["cdpk", "siapa", "profil", "tentang", "perusahaan", "visi", "misi", "citradata"]):
+                    score += 300.0
 
                 if score > 0:
                     category = first_segment.upper() if first_segment != "." else "UMUM"
-                    snippet = content[:5000]
+                    snippet = extract_smart_snippet(content, search_tokens)
                     scored_docs.append((score, file, category, snippet))
             except Exception as e:
                 logger.warning(f"Gagal membaca file .md {file}: {e}")
