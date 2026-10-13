@@ -147,7 +147,7 @@ def extract_smart_snippet(content: str, query_tokens: list, max_length: int = 50
     else:
         return f"{header}\n\n[... bagian dokumen sebelumnya dilewati ...]\n\n{content[start_pos:end_pos]}"
 
-def retrieve_relevant_knowledge(query: str, user_level: str = "STANDARD", top_k: int = 7) -> str:
+def retrieve_relevant_knowledge(query: str, user_level: str = "STANDARD", top_k: int = 8) -> str:
     """Mencari dokumen paling relevan dengan pertanyaan pengguna berdasarkan hak akses:
     - DIREKSI: mencari di subfolder umum, finance, dan direksi.
     - FINANCE: mencari di subfolder umum dan finance.
@@ -165,7 +165,10 @@ def retrieve_relevant_knowledge(query: str, user_level: str = "STANDARD", top_k:
         allowed_subfolders = {"umum"}
 
     raw_tokens = [t.lower() for t in re.findall(r'[a-zA-Z0-9]+', query) if len(t) >= 2]
-    stop_words = {"apa", "dan", "yang", "di", "ke", "dari", "ini", "itu", "untuk", "pada", "adalah", "saya", "bisa", "bagaimana", "apakah"}
+    stop_words = {
+        "apa", "dan", "yang", "di", "ke", "dari", "ini", "itu", "untuk", "pada", "adalah",
+        "saya", "bisa", "bagaimana", "apakah", "ttg", "tentang", "jelaskan", "tolong", "info", "kasih"
+    }
     search_tokens = [t for t in raw_tokens if t not in stop_words and len(t) >= 3]
     if not search_tokens:
         search_tokens = raw_tokens
@@ -225,9 +228,12 @@ def retrieve_relevant_knowledge(query: str, user_level: str = "STANDARD", top_k:
                 elif matched_token_count >= 2:
                     score += matched_token_count * 60.0
 
-                # 4. Boost profil umum jika mencari tentang perusahaan
-                if "cdpk_overview" in fn_lower and any(k in search_tokens for k in ["cdpk", "siapa", "profil", "tentang", "perusahaan", "visi", "misi", "citradata"]):
-                    score += 300.0
+                # 4. Boost dokumen overview / profil / materi training agar lebih diprioritaskan dibanding datasheet teknis lepasan
+                if any(w in fn_lower for w in ["cdpk_overview", "businessprospect", "prospect", "training", "katalog", "profile"]):
+                    score += 150.0
+
+                if "cdpk_overview" in fn_lower:
+                    score += 200.0
 
                 if score > 0:
                     category = first_segment.upper() if first_segment != "." else "UMUM"
@@ -327,11 +333,12 @@ def get_effective_system_prompt(user_access: dict = None, query: str = "") -> st
         )
 
     strict_md_instruction = (
-        "🔒 ATURAN KETAT SUMBER PENGETAHUAN (HANYA BERKAS MARKDOWN .MD):\n"
+        "🔒 ATURAN KETAT SUMBER PENGETAHUAN & DOMAIN BISNIS CDPK HQ:\n"
         "1. SUMBER TUNGGAL: Anda HANYA diperbolehkan mencari, membaca, dan mendasarkan jawaban Anda pada berkas-berkas resmi berformat Markdown (.md) CDPK HQ yang disediakan di bawah ini.\n"
-        "2. ANTI-HALUSINASI: DILARANG mengarang, berspekulasi, atau menggunakan asumsi/informasi di luar isi berkas Markdown (.md) yang disediakan.\n"
-        "3. JIKA TIDAK DITEMUKAN: Jika informasi yang ditanyakan pengguna TIDAK DITEMUKAN dalam berkas Markdown (.md) CDPK HQ (atau jika penanya tidak memiliki izin akses ke berkas .md tersebut), nyatakan secara jujur dan lugas: 'Informasi tersebut tidak ditemukan dalam basis data dokumen Markdown (.md) resmi CDPK HQ.'\n"
-        "4. KUTIPAN NAMA FILE: SELALU sebutkan nama berkas Markdown (.md) sumber rujukan pada setiap jawaban (contoh: 'Berdasarkan dokumen `nama_file.md`...')."
+        "2. DOMAIN BISNIS RESMI: CDPK HQ bergerak di bidang SOLUSI KOMUNIKASI RADIO NIRKABEL PROFESIONAL (Motorola Solutions, FMTCS Solutions, POCStar, Tramigo), PERALATAN OUTDOOR & DIVING (Skywoods), serta PERANGKAT INTRINSICALLY SAFE ATEX/EX (i.Safe Mobile).\n"
+        "3. ANTI-HALUSINASI SINGKATAN/ISTILAH: DILARANG KERAS mengartikan singkatan internal/produk (seperti FMTCS, IMS, FMTCS-LRF, POCStar, MCX, DMR, DAS, ATEX, HazLoc) ke bidang lain di luar bisnis telekomunikasi CDPK HQ (contoh: DILARANG mengartikan FMTCS ke bidang perbankan, perbendaharaan, atau keuangan umum). FMTCS adalah penyedia solusi sistem komunikasi nirkabel dan DAS mitra CDPK HQ.\n"
+        "4. JIKA TIDAK DITEMUKAN: Jika informasi yang ditanyakan pengguna TIDAK DITEMUKAN dalam berkas Markdown (.md) CDPK HQ (atau penanya tidak berhak mengaksesnya), nyatakan secara jujur: 'Informasi tersebut tidak ditemukan dalam basis data dokumen Markdown (.md) resmi CDPK HQ.'\n"
+        "5. KUTIPAN NAMA FILE: SELALU sebutkan nama berkas Markdown (.md) sumber rujukan pada setiap jawaban."
     )
 
     prompt_parts = [
