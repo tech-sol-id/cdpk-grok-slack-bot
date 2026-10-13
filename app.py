@@ -26,7 +26,7 @@ GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
 GITHUB_REPO = os.environ.get("GITHUB_REPO", "tech-sol-id/cdpk-grok-slack-bot")
 SYSTEM_PROMPT = os.environ.get(
     "SYSTEM_PROMPT",
-    "Anda adalah asisten AI resmi CDPK HQ yang didukung oleh Grok. Berikan jawaban yang cerdas, solutif, dan profesional."
+    "Anda adalah asisten AI resmi CDPK HQ yang didukung oleh Grok. Anda HANYA mencari, mengacu, dan menjawab pertanyaan berdasarkan dokumen-dokumen resmi berformat Markdown (.md) CDPK HQ."
 )
 
 if not all([SLACK_BOT_TOKEN, SLACK_APP_TOKEN, XAI_API_KEY]):
@@ -144,42 +144,45 @@ def retrieve_relevant_knowledge(query: str, user_level: str = "STANDARD", top_k:
             continue
 
         for file in files:
-            if file.endswith(".md") and file.lower() != "readme.md":
-                path = os.path.join(root, file)
-                try:
-                    with open(path, "r", encoding="utf-8", errors="ignore") as f:
-                        content = f.read()
+            # Hanya memproses file berformat Markdown (.md), abaikan hidden file dan readme
+            if file.startswith(".") or not file.endswith(".md") or file.lower() == "readme.md":
+                continue
 
-                    fn_lower = file.lower()
-                    content_lower = content.lower()
+            path = os.path.join(root, file)
+            try:
+                with open(path, "r", encoding="utf-8", errors="ignore") as f:
+                    content = f.read()
 
-                    score = 0.0
+                fn_lower = file.lower()
+                content_lower = content.lower()
 
-                    # 1. Matching frasa khusus (contoh 'rg 170')
-                    for ph in phrases:
-                        if ph in fn_lower:
-                            score += 150.0
-                        elif ph in content_lower:
-                            score += 80.0
+                score = 0.0
 
-                    # 2. Matching token dengan bobot nama file & log-frequency isi
-                    for t in tokens:
-                        if t in fn_lower:
-                            score += 60.0 if len(t) > 3 else 20.0
-                        c = content_lower.count(t)
-                        if c > 0:
-                            score += (1.0 + math.log(c)) * (8.0 if len(t) > 3 else 2.0)
+                # 1. Matching frasa khusus (contoh 'rg 170')
+                for ph in phrases:
+                    if ph in fn_lower:
+                        score += 150.0
+                    elif ph in content_lower:
+                        score += 80.0
 
-                    # 3. Boost profil umum jika mencari tentang perusahaan
-                    if "cdpk_overview" in fn_lower and any(k in tokens for k in ["cdpk", "siapa", "profil", "tentang", "perusahaan"]):
-                        score += 50.0
+                # 2. Matching token dengan bobot nama file & log-frequency isi
+                for t in tokens:
+                    if t in fn_lower:
+                        score += 60.0 if len(t) > 3 else 20.0
+                    c = content_lower.count(t)
+                    if c > 0:
+                        score += (1.0 + math.log(c)) * (8.0 if len(t) > 3 else 2.0)
 
-                    if score > 0:
-                        category = first_segment.upper() if first_segment != "." else "UMUM"
-                        snippet = content[:5000]
-                        scored_docs.append((score, file, category, snippet))
-                except Exception as e:
-                    logger.warning(f"Gagal membaca {file}: {e}")
+                # 3. Boost profil umum jika mencari tentang perusahaan
+                if "cdpk_overview" in fn_lower and any(k in tokens for k in ["cdpk", "siapa", "profil", "tentang", "perusahaan"]):
+                    score += 50.0
+
+                if score > 0:
+                    category = first_segment.upper() if first_segment != "." else "UMUM"
+                    snippet = content[:5000]
+                    scored_docs.append((score, file, category, snippet))
+            except Exception as e:
+                logger.warning(f"Gagal membaca file .md {file}: {e}")
 
     scored_docs.sort(key=lambda x: x[0], reverse=True)
     top_docs = scored_docs[:top_k]
@@ -271,23 +274,33 @@ def get_effective_system_prompt(user_access: dict = None, query: str = "") -> st
             f"- BATASAN KETAT: JANGAN PERNAH berikan informasi dari folder 'Finance and Accounting', 'Order Management', 'Slack - Finance', 'Slack - Khusus Direksi', atau informasi bertema 'Gaji'. Jika ditanyakan, tolak dengan sopan dan jelaskan bahwa informasi tersebut bersifat konfidensial dan hanya dapat diakses oleh Tim Finance atau Direksi."
         )
 
-    citation_instruction = (
-        "📌 PANDUAN RUJUKAN & SUMBER REFERENSI:\n"
-        "- Ketika menjawab pertanyaan seputar SOP, regulasi, atau kebijakan kantor, SELALU sebutkan nama file dokumen sumbernya (contoh: 'Berdasarkan dokumen SOP-X...') yang tertera pada metadata dokumen agar penanya mengetahui dasar rujukannya."
+    strict_md_instruction = (
+        "🔒 ATURAN KETAT SUMBER PENGETAHUAN (HANYA BERKAS MARKDOWN .MD):\n"
+        "1. SUMBER TUNGGAL: Anda HANYA diperbolehkan mencari, membaca, dan mendasarkan jawaban Anda pada berkas-berkas resmi berformat Markdown (.md) CDPK HQ yang disediakan di bawah ini.\n"
+        "2. ANTI-HALUSINASI: DILARANG mengarang, berspekulasi, atau menggunakan asumsi/informasi di luar isi berkas Markdown (.md) yang disediakan.\n"
+        "3. JIKA TIDAK DITEMUKAN: Jika informasi yang ditanyakan pengguna TIDAK DITEMUKAN dalam berkas Markdown (.md) CDPK HQ (atau jika penanya tidak memiliki izin akses ke berkas .md tersebut), nyatakan secara jujur dan lugas: 'Informasi tersebut tidak ditemukan dalam basis data dokumen Markdown (.md) resmi CDPK HQ.'\n"
+        "4. KUTIPAN NAMA FILE: SELALU sebutkan nama berkas Markdown (.md) sumber rujukan pada setiap jawaban (contoh: 'Berdasarkan dokumen `nama_file.md`...')."
     )
 
     prompt_parts = [
         SYSTEM_PROMPT,
         rbac_instruction,
-        citation_instruction
+        strict_md_instruction
     ]
 
     if kb:
         prompt_parts.append(
-            f"=== BASIS PENGETAHUAN RESMI CDPK HQ (KNOWLEDGE BASE) ===\n"
-            f"Gunakan dokumen rujukan resmi berikut sebagai panduan utama dalam menjawab pertanyaan seputar CDPK HQ:\n\n"
+            f"=== BASIS PENGETAHUAN RESMI CDPK HQ (HANYA BERKAS MARKDOWN .MD) ===\n"
+            f"Berikut adalah kutipan dokumen Markdown (.md) resmi CDPK HQ yang relevan dengan pertanyaan:\n\n"
             f"{kb}\n"
-            f"=== AKHIR BASIS PENGETAHUAN ==="
+            f"=== AKHIR BASIS PENGETAHUAN MARKDOWN (.MD) ==="
+        )
+    else:
+        prompt_parts.append(
+            "=== BASIS PENGETAHUAN RESMI CDPK HQ (HANYA BERKAS MARKDOWN .MD) ===\n"
+            "TIDAK DITEMUKAN berkas Markdown (.md) yang relevan untuk pertanyaan ini di dalam basis data atau dalam cakupan hak akses penanya.\n"
+            "Jelaskan kepada penanya bahwa informasi yang dicari tidak ditemukan dalam berkas Markdown (.md) resmi CDPK HQ.\n"
+            "=== AKHIR BASIS PENGETAHUAN MARKDOWN (.MD) ==="
         )
 
     return "\n\n".join(prompt_parts)

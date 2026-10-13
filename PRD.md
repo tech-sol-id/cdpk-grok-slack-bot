@@ -129,8 +129,10 @@ Bot memverifikasi identitas pengguna di Slack berdasarkan User ID permanen dan p
 | 💼 **TIM FINANCE** | Sen sen, Ririn, Villa | Memuat `knowledge/finance/` dan `knowledge/umum/`. | ❌ **HARD BLOCKED**: Berkas dari folder `knowledge/direksi/` sama sekali tidak pernah dimasukkan ke konteks prompt. |
 | 👥 **STAF UMUM** | Anggota tim selain Direksi & Finance | HANYA memuat `knowledge/umum/`. | ❌ **HARD BLOCKED**: Berkas dari `finance/` dan `direksi/` tidak pernah dimasukkan ke konteks prompt. |
 
-### 5.2 Pencatatan & Penyebutan Sumber Referensi (Citations)
-* Setiap kali Grok menjawab pertanyaan seputar kebijakan, SOP, atau regulasi internal, bot **selalu menyebutkan nama file dokumen sumbernya** (contoh: *"Berdasarkan dokumen SOP FMTCS v2.1..."*).
+### 5.2 Strict Markdown-Only Grounding & Penyebutan Sumber Referensi (Citations)
+* **Sumber Tunggal Berkas Markdown (.md)**: Grok HANYA mencari, membaca, dan mendasarkan jawabannya pada dokumen-dokumen berformat Markdown (`.md`) resmi CDPK HQ yang ada pada subfolder `knowledge/` (`umum/`, `finance/`, `direksi/`).
+* **Anti-Halusinasi & Penolakan Spekulasi**: Jika informasi yang ditanyakan tidak tercantum di dalam berkas Markdown (`.md`) yang diizinkan (atau penanya tidak memiliki hak akses), bot menolak berspekulasi dan secara transparan menyatakan: *"Informasi tersebut tidak ditemukan dalam basis data dokumen Markdown (.md) resmi CDPK HQ."*
+* **Kutipan Nama Berkas**: Setiap kali Grok menjawab pertanyaan seputar kebijakan, SOP, atau regulasi internal, bot **selalu menyebutkan nama berkas Markdown (.md) sumbernya** (contoh: *"Berdasarkan berkas `3_9_wi_svc_001_site_survey.md`..."*).
 
 ### 5.3 Channel Terpusat (`#ask-grok`) & Direct Message
 * Anggota tim berinteraksi dengan me-mention bot: `@Grok <pertanyaan>` di channel `#ask-grok` (membalas di thread) atau berkonsultasi privat melalui Direct Message (DM 1-on-1).
