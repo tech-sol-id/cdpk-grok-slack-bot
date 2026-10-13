@@ -2,6 +2,7 @@ import os
 import re
 import json
 import math
+import base64
 import urllib.request
 import logging
 import threading
@@ -95,6 +96,60 @@ def trigger_cloud_sync() -> tuple:
         logger.error(f"Gagal memicu GitHub dispatch: {e}")
         return False, str(e)
 
+def extract_slack_media(client, event: dict) -> list:
+    """Mengunduh gambar atau mengekstrak halaman pertama PDF yang dilampirkan di Slack untuk Grok Vision."""
+    files = event.get("files", [])
+    if not files:
+        return []
+
+    media_items = []
+    token = getattr(client, "token", None) or os.environ.get("SLACK_BOT_TOKEN")
+
+    for f in files:
+        mimetype = f.get("mimetype", "")
+        url = f.get("url_private_download") or f.get("url_private")
+        fname = f.get("name", "attachment")
+        if not url:
+            continue
+
+        try:
+            req = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}"})
+            with urllib.request.urlopen(req, timeout=20) as resp:
+                data = resp.read()
+
+            # 1. Jika file berupa gambar langsung (PNG, JPEG, WebP, GIF)
+            if mimetype.startswith("image/"):
+                b64_str = base64.b64encode(data).decode("utf-8")
+                media_items.append({
+                    "type": "image_url",
+                    "image_url": {"url": f"data:{mimetype};base64,{b64_str}"}
+                })
+                logger.info(f"Berhasil memuat gambar lampiran Slack: {fname} ({mimetype})")
+
+            # 2. Jika file berupa dokumen PDF (skema blueprint / denah arsitektur)
+            elif mimetype == "application/pdf" or fname.lower().endswith(".pdf"):
+                try:
+                    import fitz  # PyMuPDF
+                    doc = fitz.open(stream=data, filetype="pdf")
+                    if len(doc) > 0:
+                        page = doc[0]
+                        # Render halaman pertama dengan resolusi tajam
+                        pix = page.get_pixmap(dpi=150)
+                        png_bytes = pix.tobytes("png")
+                        b64_str = base64.b64encode(png_bytes).decode("utf-8")
+                        media_items.append({
+                            "type": "image_url",
+                            "image_url": {"url": f"data:image/png;base64,{b64_str}"}
+                        })
+                        logger.info(f"Berhasil merender halaman PDF {fname} ke gambar untuk Grok Vision")
+                        doc.close()
+                except Exception as e:
+                    logger.warning(f"Gagal mengonversi PDF {fname} ke gambar via PyMuPDF: {e}")
+        except Exception as e:
+            logger.warning(f"Gagal mengunduh file lampiran {fname} dari Slack: {e}")
+
+    return media_items
+
 def ask_grok(messages: list) -> str:
     """Mengirim pesan ke xAI Grok API."""
     try:
@@ -184,6 +239,9 @@ def retrieve_relevant_knowledge(query: str, user_level: str = "STANDARD", top_k:
         "brosur": ["brochure", "flyer"],
         "panduan": ["manual", "guide", "operating manual"],
         "instruksi": ["instructions", "safety"],
+        "topologi": ["topology", "das", "riser", "omu", "oru", "antenna", "splitter", "coupler", "coverage"],
+        "desain": ["design", "das", "omu", "oru", "architecture", "diagram"],
+        "gambar": ["diagram", "schematic", "blueprint", "plan", "riser"],
     }
     expanded_tokens = list(search_tokens)
     for st in search_tokens:
@@ -370,10 +428,24 @@ def get_effective_system_prompt(user_access: dict = None, query: str = "") -> st
         "5. KUTIPAN NAMA FILE: SELALU sebutkan nama berkas Markdown (.md) sumber rujukan pada setiap jawaban."
     )
 
+    solution_architect_instruction = (
+        "🧠 KAPABILITAS ANALISIS & REASONING TEKNIK (SOLUTIONS ARCHITECT CDPK HQ):\n"
+        "1. ANALISIS MULTIMODAL & TOPOLOGI: Jika pengguna melampirkan gambar skema, denah gedung/hotel, blueprint arsitektur, atau riser diagram kabel (atau menanyakan rekomendasi desain topologi):\n"
+        "   - Analisis struktur yang terlihat pada gambar/lampiran (jumlah lantai, zona, basement, rute riser kabel vertikal, serta area jangkauan yang dibutuhkan).\n"
+        "   - Lakukan reasoning teknis pemilihan arsitektur Distributed Antenna System (DAS):\n"
+        "     * Active Optical DAS: Gunakan FMTCS OMU (Optical Master Unit - LRFN-DOMU400C / AOMU400C) di ruang server/rack utama dan FMTCS ORU (Optical Remote Unit - LRFF-DORU400CH / AORU400CH) di riser per lantai/zona via kabel fiber optik untuk mengatasi pelemahan jarak jauh.\n"
+        "     * Passive Distribution: Gunakan FMTCS Coupler (Directional Coupler CP-PD-400R) dan Splitter (Power Splitter UDSS400C / CP-PD-400R) untuk membagi daya RF ke kabel coaxial feeder.\n"
+        "     * Antena: Gunakan FMTCS Indoor Omni Antenna (ANTI400R) di koridor/kamar hotel dan Outdoor Directional Antenna (ANTX400R) untuk donor sinyal/eksterior.\n"
+        "     * Radio Repeater: Integrasikan dengan repeater Motorola Solutions MOTOTRBO (SLR 5000 / SLR 8000 / XPR 8400).\n"
+        "   - Sajikan rekomendasi terstruktur: (A) Analisis Kebutuhan Arsitektur Bangunan, (B) Rekomendasi Topologi Sistem, (C) Estimasi Daftar Perangkat / Bill of Materials (BOM) FMTCS & Motorola yang cocok, dan (D) Catatan Teknis & Praktik Terbaik Instalasi.\n"
+        "2. SINTESIS DATA CERDAS: Gabungkan pengamatan visual gambar topologi dengan spesifikasi teknis dari dokumen resmi Markdown (.md) yang tersedia di basis pengetahuan untuk menghasilkan solusi rekayasa (engineering proposal) yang kredibel dan aplikatif."
+    )
+
     prompt_parts = [
         SYSTEM_PROMPT,
         rbac_instruction,
-        strict_md_instruction
+        strict_md_instruction,
+        solution_architect_instruction
     ]
 
     if kb:
@@ -456,13 +528,28 @@ def handle_mention(event, say, client):
             pass
         return
 
+    # Ekstraksi file lampiran (gambar / blueprint PDF) untuk Grok Vision
+    media_items = extract_slack_media(client, event)
+    # Jika di dalam thread dan tidak ada file di mention ini, cek juga pesan root thread
+    if not media_items and "thread_ts" in event:
+        try:
+            replies = client.conversations_replies(channel=channel, ts=thread_ts, limit=1)
+            root_msgs = replies.get("messages", [])
+            if root_msgs and root_msgs[0].get("files"):
+                media_items = extract_slack_media(client, root_msgs[0])
+        except Exception:
+            pass
+
     # Ambil konteks jika berada dalam thread, atau buat percakapan baru
     if "thread_ts" in event:
         conversation = get_thread_context(client, channel, thread_ts, bot_user_id, user_access, query=user_text)
+        if media_items and conversation and conversation[-1]["role"] == "user":
+            conversation[-1]["content"] = [{"type": "text", "text": user_text}] + media_items
     else:
+        user_content = [{"type": "text", "text": user_text}] + media_items if media_items else user_text
         conversation = [
             {"role": "system", "content": get_effective_system_prompt(user_access, query=user_text)},
-            {"role": "user", "content": user_text}
+            {"role": "user", "content": user_content}
         ]
 
     # Dapatkan jawaban dari Grok
@@ -485,7 +572,7 @@ def handle_direct_message(event, say, client):
         return
 
     user_text = event.get("text", "").strip()
-    if not user_text:
+    if not user_text and not event.get("files"):
         return
 
     try:
@@ -523,9 +610,12 @@ def handle_direct_message(event, say, client):
             pass
         return
 
+    media_items = extract_slack_media(client, event)
+    user_content = [{"type": "text", "text": user_text}] + media_items if media_items else user_text
+
     conversation = [
         {"role": "system", "content": get_effective_system_prompt(user_access, query=user_text)},
-        {"role": "user", "content": user_text}
+        {"role": "user", "content": user_content}
     ]
 
     reply = ask_grok(conversation)
