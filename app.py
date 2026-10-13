@@ -12,6 +12,16 @@ from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
 from openai import OpenAI
 from doc_engine import generate_bom_excel, generate_proposal_docx, upload_document_to_slack, DOC_TOOLS
+from reminder_engine import (
+    add_reminder,
+    list_active_reminders,
+    cancel_reminder,
+    start_reminder_worker,
+    get_now_wib,
+    REMINDER_TOOLS
+)
+
+ALL_TOOLS = DOC_TOOLS + REMINDER_TOOLS
 
 # Muat variabel environment dari .env
 load_dotenv()
@@ -151,19 +161,19 @@ def extract_slack_media(client, event: dict) -> list:
 
     return media_items
 
-def ask_grok(messages: list, client=None, channel: str = None, thread_ts: str = None) -> str:
-    """Mengirim pesan ke xAI Grok API dengan dukungan Tool Calling untuk Document Generation."""
+def ask_grok(messages: list, client=None, channel: str = None, thread_ts: str = None, user_id: str = None) -> str:
+    """Mengirim pesan ke xAI Grok API dengan dukungan Tool Calling untuk Dokumen & Reminder."""
     try:
         response = ai_client.chat.completions.create(
             model=XAI_MODEL,
             messages=messages,
-            tools=DOC_TOOLS,
+            tools=ALL_TOOLS,
             tool_choice="auto",
             temperature=0.7,
         )
         msg = response.choices[0].message
 
-        # Jika Grok memanggil tool untuk membuat file Excel BOM atau Word Proposal
+        # Jika Grok memanggil tool (generate dokumen atau reminder)
         if msg.tool_calls:
             tool_call_messages = list(messages)
             tool_call_messages.append(msg)
@@ -174,6 +184,7 @@ def ask_grok(messages: list, client=None, channel: str = None, thread_ts: str = 
                 fn_args = json.loads(tc.function.arguments)
                 tool_output_str = ""
 
+                # 1. Tool Dokumen: Excel BOM
                 if fn_name == "generate_bom_excel":
                     pname = fn_args.get("project_name", "Proyek_CDPK")
                     cname = fn_args.get("client_name", "")
@@ -192,6 +203,7 @@ def ask_grok(messages: list, client=None, channel: str = None, thread_ts: str = 
                         else:
                             uploaded_notices.append(f"• File Excel BOM `{fname}` berhasil dibuat di server.")
 
+                # 2. Tool Dokumen: Word Proposal
                 elif fn_name == "generate_proposal_docx":
                     pname = fn_args.get("project_name", "Proyek_CDPK")
                     cname = fn_args.get("client_name", "")
@@ -212,6 +224,51 @@ def ask_grok(messages: list, client=None, channel: str = None, thread_ts: str = 
                             uploaded_notices.append(f"• Dokumen Word Proposal: `{fname}` (telah diunggah ke chat)")
                         else:
                             uploaded_notices.append(f"• Dokumen Word `{fname}` berhasil dibuat di server.")
+
+                # 3. Tool Reminder: Set Reminder
+                elif fn_name == "set_reminder":
+                    target = fn_args.get("target", "tim")
+                    rem_msg = fn_args.get("reminder_message", "")
+                    delay_sec = fn_args.get("delay_seconds", 60)
+                    target_time_desc = fn_args.get("target_time_description", "")
+                    recurrence = fn_args.get("recurrence", "none")
+                    rem_obj = add_reminder(
+                        creator_id=user_id or "",
+                        channel=channel or "",
+                        target=target,
+                        message=rem_msg,
+                        delay_seconds=delay_sec,
+                        target_time_description=target_time_desc,
+                        recurrence=recurrence,
+                        thread_ts=thread_ts
+                    )
+                    tool_output_str = (
+                        f"Pengingat berhasil dijadwalkan (ID: {rem_obj['id']}) untuk {target} "
+                        f"pada {rem_obj['due_time_str']} (deskripsi: {rem_obj['target_time_description']})."
+                    )
+
+                # 4. Tool Reminder: List Reminders
+                elif fn_name == "list_reminders":
+                    active_rems = list_active_reminders(channel=channel)
+                    if not active_rems:
+                        tool_output_str = "Saat ini tidak ada pengingat aktif yang terjadwal di channel ini."
+                    else:
+                        lines = ["Daftar pengingat aktif saat ini:"]
+                        for idx, r in enumerate(active_rems, 1):
+                            lines.append(
+                                f"{idx}. [{r['id']}] Target: {r['target']} | Pesan: \"{r['message']}\" "
+                                f"| Jadwal: {r['due_time_str']} (ulang: {r['recurrence']})"
+                            )
+                        tool_output_str = "\n".join(lines)
+
+                # 5. Tool Reminder: Cancel Reminder
+                elif fn_name == "cancel_reminder":
+                    rem_ident = fn_args.get("reminder_id", "")
+                    success = cancel_reminder(rem_ident, channel=channel)
+                    if success:
+                        tool_output_str = f"Pengingat '{rem_ident}' berhasil dibatalkan."
+                    else:
+                        tool_output_str = f"Pengingat '{rem_ident}' tidak ditemukan di daftar aktif."
 
                 tool_call_messages.append({
                     "role": "tool",
@@ -520,7 +577,14 @@ def get_effective_system_prompt(user_access: dict = None, query: str = "") -> st
         "   - Tawarkan skema transisi bertahap: integrasikan radio analog lawas ke Digital DMR Tier II/III, serta pasangkan gateway ke aplikasi Push-to-Talk over Cellular (POCStar/Broadband) agar investasi eksisting klien terlindungi.\n"
         "7. GENERATE DOKUMEN OTOMATIS (EXCEL BOM & WORD PROPOSAL):\n"
         "   - WAJIB: Jika pengguna meminta Bill of Materials (BOM), estimasi BOM, rincian biaya/perangkat, file Excel, atau dokumen spreadsheet, Anda WAJIB MEMANGGIL TOOL 'generate_bom_excel' dengan data terstruktur (part number, nama alat, kuantitas, estimasi harga) agar file Excel .xlsx otomatis diunggah ke chat Slack!\n"
-        "   - Jika pengguna meminta proposal teknis tertulis, arsitektur solusi, atau dokumen Word, PANGGIL TOOL 'generate_proposal_docx' agar file dokumen Word .docx otomatis diunggah ke chat Slack!"
+        "   - Jika pengguna meminta proposal teknis tertulis, arsitektur solusi, atau dokumen Word, PANGGIL TOOL 'generate_proposal_docx' agar file dokumen Word .docx otomatis diunggah ke chat Slack!\n"
+        f"8. PENGINGAT & REMINDER TIM OTOMATIS (AI SCHEDULE CO-PILOT):\n"
+        f"   - WAKTU SERVER SAAT INI (WIB): {get_now_wib().strftime('%A, %d %B %Y pukul %H:%M:%S WIB')}\n"
+        f"   - Jika pengguna meminta mengingatkan diri sendiri, rekan kerja, atau channel (contoh: 'ingatkan saya...', 'ingatkan @Richard besok jam 9 pagi...', 'jadwalkan reminder evaluasi setiap Senin jam 08:30 WIB...'):\n"
+        f"     * Hitung selisih detik ('delay_seconds') dari waktu server saat ini ke waktu target pengingat.\n"
+        f"     * PANGGIL TOOL 'set_reminder' dengan parameter target, reminder_message, delay_seconds, target_time_description, dan recurrence!\n"
+        f"   - Jika pengguna meminta melihat daftar reminder yang sedang aktif di channel ini, PANGGIL TOOL 'list_reminders'.\n"
+        f"   - Jika pengguna meminta membatalkan pengingat, PANGGIL TOOL 'cancel_reminder'."
     )
 
     prompt_parts = [
@@ -641,8 +705,8 @@ def handle_mention(event, say, client):
             {"role": "user", "content": user_content}
         ]
 
-    # Dapatkan jawaban dari Grok (dengan dukungan tool calling untuk generate Excel BOM & Word Proposal)
-    reply = ask_grok(conversation, client=client, channel=channel, thread_ts=thread_ts)
+    # Dapatkan jawaban dari Grok (dengan dukungan tool calling untuk Dokumen & Reminder)
+    reply = ask_grok(conversation, client=client, channel=channel, thread_ts=thread_ts, user_id=user_id)
 
     # Kirim balasan selalu di dalam thread agar rapi
     say(text=reply, thread_ts=thread_ts)
@@ -707,7 +771,7 @@ def handle_direct_message(event, say, client):
         {"role": "user", "content": user_content}
     ]
 
-    reply = ask_grok(conversation, client=client, channel=event["channel"], thread_ts=None)
+    reply = ask_grok(conversation, client=client, channel=event["channel"], thread_ts=None, user_id=user_id)
     say(text=reply)
 
     try:
@@ -735,6 +799,9 @@ if __name__ == "__main__":
     health_thread = threading.Thread(target=start_health_server, args=(port,), daemon=True)
     health_thread.start()
     logger.info(f"Health check HTTP server berjalan di port {port}")
+
+    # Aktifkan scheduler background worker pengingat tim 24/7
+    start_reminder_worker(app.client)
 
     logger.info("Memulai Grok Slack Bot dalam Socket Mode...")
     handler = SocketModeHandler(app, SLACK_APP_TOKEN)
