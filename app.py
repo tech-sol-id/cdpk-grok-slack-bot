@@ -491,12 +491,13 @@ def get_effective_system_prompt(user_access: dict = None, query: str = "") -> st
         )
 
     strict_md_instruction = (
-        "🔒 ATURAN KETAT SUMBER PENGETAHUAN & DOMAIN BISNIS CDPK HQ:\n"
-        "1. SUMBER TUNGGAL: Anda HANYA diperbolehkan mencari, membaca, dan mendasarkan jawaban Anda pada berkas-berkas resmi berformat Markdown (.md) CDPK HQ yang disediakan di bawah ini.\n"
+        "🔒 ATURAN SUMBER PENGETAHUAN & DOMAIN BISNIS CDPK HQ:\n"
+        "1. SUMBER DATA PERUSAHAAN: Untuk arsip perusahaan, profil, laporan keuangan, data karyawan, dan spesifikasi produk internal, dasarkan pada berkas Markdown (.md) resmi CDPK HQ di bawah ini.\n"
         "2. DOMAIN BISNIS RESMI: CDPK HQ bergerak di bidang SOLUSI KOMUNIKASI RADIO NIRKABEL PROFESIONAL (Motorola Solutions, FMTCS Solutions, POCStar, Tramigo), PERALATAN OUTDOOR & DIVING (Skywoods), serta PERANGKAT INTRINSICALLY SAFE ATEX/EX (i.Safe Mobile).\n"
-        "3. ANTI-HALUSINASI SINGKATAN/ISTILAH: DILARANG KERAS mengartikan singkatan internal/produk (seperti FMTCS, IMS, FMTCS-LRF, POCStar, MCX, DMR, DAS, ATEX, HazLoc) ke bidang lain di luar bisnis telekomunikasi CDPK HQ (contoh: DILARANG mengartikan FMTCS ke bidang perbankan, perbendaharaan, atau keuangan umum). FMTCS adalah penyedia solusi sistem komunikasi nirkabel dan DAS mitra CDPK HQ.\n"
-        "4. JIKA TIDAK DITEMUKAN: Jika informasi yang ditanyakan pengguna TIDAK DITEMUKAN dalam berkas Markdown (.md) CDPK HQ (atau penanya tidak berhak mengaksesnya), nyatakan secara jujur: 'Informasi tersebut tidak ditemukan dalam basis data dokumen Markdown (.md) resmi CDPK HQ.'\n"
-        "5. KUTIPAN NAMA FILE: SELALU sebutkan nama berkas Markdown (.md) sumber rujukan pada setiap jawaban."
+        "3. ANTI-HALUSINASI SINGKATAN/ISTILAH: DILARANG mengartikan singkatan internal/produk (seperti FMTCS, IMS, FMTCS-LRF, POCStar, MCX, DMR, DAS, ATEX, HazLoc) ke bidang lain di luar bisnis telekomunikasi CDPK HQ. FMTCS adalah penyedia solusi sistem komunikasi nirkabel dan DAS mitra resmi CDPK HQ.\n"
+        "4. ANALISIS MULTIMODAL BLUEPRINT & GAMBAR: Jika pengguna melampirkan gambar skema, blueprint, denah, atau riser diagram kabel, Anda WAJIB menganalisis secara visual gambar tersebut, mengidentifikasi arsitektur gedung/lantai/riser, serta merekomendasikan solusi sistem DAS & radio CDPK HQ (FMTCS / Motorola). JANGAN PERNAH menolak analisis visual gambar dengan alasan tidak ada di dokumen .md!\n"
+        "5. JIKA INFORMASI ARSIP TIDAK DITEMUKAN: Hanya jika pengguna menanyakan fakta/arsip internal perusahaan yang tidak ada di berkas .md dan tidak melampirkan gambar untuk dianalisis, nyatakan: 'Informasi tersebut tidak ditemukan dalam basis data dokumen Markdown (.md) resmi CDPK HQ.'\n"
+        "6. KUTIPAN NAMA FILE: Bila merujuk dokumen resmi, sebutkan nama berkas Markdown (.md) rujukan."
     )
 
     solution_architect_instruction = (
@@ -518,7 +519,8 @@ def get_effective_system_prompt(user_access: dict = None, query: str = "") -> st
         "6. REASONING MIGRASI HIBRIDA BERTAHAP (ANALOG -> DMR -> POCSTAR):\n"
         "   - Tawarkan skema transisi bertahap: integrasikan radio analog lawas ke Digital DMR Tier II/III, serta pasangkan gateway ke aplikasi Push-to-Talk over Cellular (POCStar/Broadband) agar investasi eksisting klien terlindungi.\n"
         "7. GENERATE DOKUMEN OTOMATIS (EXCEL BOM & WORD PROPOSAL):\n"
-        "   - Jika pengguna meminta membuat dokumen, file Excel, BOM, spreadsheet, proposal Word, atau penawaran harga, PANGGIL TOOL 'generate_bom_excel' atau 'generate_proposal_docx' dengan data yang rapi dan terstruktur!"
+        "   - WAJIB: Jika pengguna meminta Bill of Materials (BOM), estimasi BOM, rincian biaya/perangkat, file Excel, atau dokumen spreadsheet, Anda WAJIB MEMANGGIL TOOL 'generate_bom_excel' dengan data terstruktur (part number, nama alat, kuantitas, estimasi harga) agar file Excel .xlsx otomatis diunggah ke chat Slack!\n"
+        "   - Jika pengguna meminta proposal teknis tertulis, arsitektur solusi, atau dokumen Word, PANGGIL TOOL 'generate_proposal_docx' agar file dokumen Word .docx otomatis diunggah ke chat Slack!"
     )
 
     prompt_parts = [
@@ -530,16 +532,16 @@ def get_effective_system_prompt(user_access: dict = None, query: str = "") -> st
 
     if kb:
         prompt_parts.append(
-            f"=== BASIS PENGETAHUAN RESMI CDPK HQ (HANYA BERKAS MARKDOWN .MD) ===\n"
+            f"=== BASIS PENGETAHUAN RESMI CDPK HQ (BERKAS MARKDOWN .MD) ===\n"
             f"Berikut adalah kutipan dokumen Markdown (.md) resmi CDPK HQ yang relevan dengan pertanyaan:\n\n"
             f"{kb}\n"
             f"=== AKHIR BASIS PENGETAHUAN MARKDOWN (.MD) ==="
         )
     else:
         prompt_parts.append(
-            "=== BASIS PENGETAHUAN RESMI CDPK HQ (HANYA BERKAS MARKDOWN .MD) ===\n"
-            "TIDAK DITEMUKAN berkas Markdown (.md) yang relevan untuk pertanyaan ini di dalam basis data atau dalam cakupan hak akses penanya.\n"
-            "Jelaskan kepada penanya bahwa informasi yang dicari tidak ditemukan dalam berkas Markdown (.md) resmi CDPK HQ.\n"
+            "=== BASIS PENGETAHUAN RESMI CDPK HQ (BERKAS MARKDOWN .MD) ===\n"
+            "Catatan: Tidak ditemukan berkas Markdown (.md) spesifik untuk kata kunci pencarian teks ini.\n"
+            "Jika pengguna melampirkan gambar/blueprint skema atau meminta perancangan solusi/BOM/dokumen, gunakan kapabilitas multimodal vision dan keahlian rekayasa sistem Solutions Architect Anda untuk menganalisis gambar dan merancang solusi secara komprehensif.\n"
             "=== AKHIR BASIS PENGETAHUAN MARKDOWN (.MD) ==="
         )
 
@@ -610,21 +612,28 @@ def handle_mention(event, say, client):
 
     # Ekstraksi file lampiran (gambar / blueprint PDF) untuk Grok Vision
     media_items = extract_slack_media(client, event)
-    # Jika di dalam thread dan tidak ada file di mention ini, cek juga pesan root thread
+    # Jika di dalam thread dan tidak ada file di mention ini, cek seluruh riwayat pesan thread
     if not media_items and "thread_ts" in event:
         try:
-            replies = client.conversations_replies(channel=channel, ts=thread_ts, limit=1)
-            root_msgs = replies.get("messages", [])
-            if root_msgs and root_msgs[0].get("files"):
-                media_items = extract_slack_media(client, root_msgs[0])
-        except Exception:
-            pass
+            replies = client.conversations_replies(channel=channel, ts=thread_ts, limit=10)
+            for m in reversed(replies.get("messages", [])):
+                if m.get("files") and m.get("user") != bot_user_id:
+                    media_items = extract_slack_media(client, m)
+                    if media_items:
+                        logger.info(f"Berhasil menemukan file dari thread context: {len(media_items)} media items")
+                        break
+        except Exception as e:
+            logger.warning(f"Gagal mengekstrak file dari riwayat thread: {e}")
 
     # Ambil konteks jika berada dalam thread, atau buat percakapan baru
     if "thread_ts" in event:
         conversation = get_thread_context(client, channel, thread_ts, bot_user_id, user_access, query=user_text)
-        if media_items and conversation and conversation[-1]["role"] == "user":
-            conversation[-1]["content"] = [{"type": "text", "text": user_text}] + media_items
+        if conversation and conversation[-1]["role"] == "user" and conversation[-1]["content"] == user_text:
+            if media_items:
+                conversation[-1]["content"] = [{"type": "text", "text": user_text}] + media_items
+        else:
+            current_content = [{"type": "text", "text": user_text}] + media_items if media_items else user_text
+            conversation.append({"role": "user", "content": current_content})
     else:
         user_content = [{"type": "text", "text": user_text}] + media_items if media_items else user_text
         conversation = [

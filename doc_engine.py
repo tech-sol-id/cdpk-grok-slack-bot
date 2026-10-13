@@ -301,11 +301,11 @@ DOC_TOOLS = [
         "type": "function",
         "function": {
             "name": "generate_bom_excel",
-            "description": "Menghasilkan spreadsheet Microsoft Excel (.xlsx) resmi CDPK HQ berisi Bill of Materials (BOM), kuantitas, part number, dan estimasi harga perangkat (Motorola, FMTCS, i.Safe). Panggil fungsi ini jika pengguna meminta file Excel, spreadsheet BOM, atau rincian daftar harga/BOM.",
+            "description": "Menghasilkan dan mengunggah spreadsheet Microsoft Excel (.xlsx) resmi CDPK HQ berisi Bill of Materials (BOM), kuantitas, part number/model, dan estimasi harga perangkat (Motorola, FMTCS, i.Safe). WAJIB DIPANGGIL setiap kali pengguna meminta rekomendasi BOM, estimasi BOM, rincian kuantitas/harga, spreadsheet, atau file Excel.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "project_name": {"type": "string", "description": "Nama proyek atau nama gedung"},
+                    "project_name": {"type": "string", "description": "Nama proyek atau nama gedung (contoh: Oasis Central Sudirman Hotel)"},
                     "client_name": {"type": "string", "description": "Nama perusahaan klien atau mitra"},
                     "items": {
                         "type": "array",
@@ -332,7 +332,7 @@ DOC_TOOLS = [
         "type": "function",
         "function": {
             "name": "generate_proposal_docx",
-            "description": "Menghasilkan dokumen resmi Microsoft Word (.docx) Proposal Desain Solusi Teknis & Arsitektur CDPK HQ. Panggil fungsi ini jika pengguna meminta proposal tertulis, dokumen solusi teknis, dokumen Word, atau dokumen rancangan topologi proyek.",
+            "description": "Menghasilkan dan mengunggah dokumen resmi Microsoft Word (.docx) Proposal Desain Solusi Teknis & Arsitektur CDPK HQ. Panggil fungsi ini jika pengguna meminta proposal tertulis, dokumen solusi teknis, dokumen Word, atau dokumen rancangan topologi proyek.",
             "parameters": {
                 "type": "object",
                 "properties": {
