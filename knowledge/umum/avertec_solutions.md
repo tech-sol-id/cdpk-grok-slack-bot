@@ -1,256 +1,242 @@
---- Halaman 1 ---
+--- Slide 1 ---
 ANTENNA DISTRIBUTION
 by PT. CITRADATA PURNAKHARISMA
 
---- Halaman 2 ---
-Perbedaan antara Sistem Radio Dua Arah
-dengan Sistem RFoF Distributed Antenna System (DAS)
-•Daya pancar lebih tinggi.
-•Cakupan sinyal di luar ruangan baik, namun di dalam 
-ruangan jauh lebih lemah.
-•Berisiko terjadi interferensi jika menggunakan frekuensi 
-yang sama.
-•Tidak dapat memperluas jangkauan sinyal secara efektif.
-•Tidak menggunakan sistem berbasis cloud.
-•Kabel RF menyebabkan hilangnya sinyal seiring jarak.
-•Daya pancar lebih rendah.
-•Coverage sinyal di dalam ruangan lebih baik.
-•Kemampuan multi-site dengan frekuensi yang sama
-      tanpa interferensi.
-•Modularisasi.
-•Cerdas dengan sistem berbasis cloud.
-•Serat optik memastikan tidak ada kehilangan sinyal
-       seiring bertambahnya jarak.
-Two way Radio System Fiber Distributed Antenna System - DAS
+--- Slide 2 ---
+Perbedaan antara Sistem Radio Dua Arahdengan Sistem RFoF Distributed Antenna System (DAS)
+Daya pancar lebih tinggi.
+Cakupan sinyal di luar ruangan baik, namun di dalam ruangan jauh lebih lemah.
+Berisiko terjadi interferensi jika menggunakan frekuensi yang sama.
+Tidak dapat memperluas jangkauan sinyal secara efektif.
+Tidak menggunakan sistem berbasis cloud.
+Kabel RF menyebabkan hilangnya sinyal seiring jarak.
+Daya pancar lebih rendah.
+Coverage sinyal di dalam ruangan lebih baik.
+Kemampuan multi-site dengan frekuensi yang sama
+tanpa interferensi.
+Modularisasi.
+Cerdas dengan sistem berbasis cloud.
+Serat optik memastikan tidak ada kehilangan sinyal
+seiring bertambahnya jarak.
+Two way Radio System
+Fiber Distributed Antenna System - DAS
 
---- Halaman 3 ---
+--- Slide 3 ---
 Topologi Diagram Antenna Distribution
 
-
---- Halaman 4 ---
-Op#cal Fiber(single mode)
-RxTx
-Rx Mul#plexer
-Tx Mul#plexer
-Rx / Tx
-Repeater SLR5300
-OMU
-ORU
-10W
-Topology Diagram AVERTEC 
-Antenna Distribu#on
-RF 
-OUT
+--- Slide 4 ---
 RF Spliter
 
---- Halaman 5 ---
-2.Optical Master Unit (OMU) dan Optical Remote Unit (ORU):
-Optical Master Unit (OMU) yang mengubah Sinyal RF dari sistem radio dua arah Basestation atau repeater 
-menjadi  sinyal optik, yang kemudian ditransmisikan melalui kabel serat optik ke Optical Remote Unit (ORU).
- ORU menerima sinyal optik dari Optical Master Unit (OMU), mengubahnya kembali menjadi RF , 
-memperkuatnya, dan mengirimkannya ke sistem antena terdistribusi untuk memperluas jarak komunikasi. 
-Adapun spesifikasi teknis untuk perangkat Optical Master Unit (OMU) dan Optical Remote Unit (ORU) .
-Komponen –komponen unit Avertac 
-1.Multi Splitter:
-Perangkat ini membagi sinyal RF downlink/uplink secara merata menjadi beberapa output, yang kemudian 
-dikirim ke OMU atau multi-kopler Penerima. 
-Desain simetris Uplink dan Downlink diadopsi untuk memastikan keseimbangan jalur sinyal di seluruh 
-sistem. setelah menghilangkan beberapa sinyal, sinyal utama masih dapat langsung digunakan untuk 
-keluaran antena RF dengan insertion loss yang lebih rendah.
+--- Slide 5 ---
+Optical Master Unit (OMU) dan Optical Remote Unit (ORU):
+Optical Master Unit (OMU) yang mengubah Sinyal RF dari sistem radio dua arah Basestation atau repeater menjadi  sinyal optik, yang kemudian ditransmisikan melalui kabel serat optik ke Optical Remote Unit (ORU).
+ORU menerima sinyal optik dari Optical Master Unit (OMU), mengubahnya kembali menjadi RF, memperkuatnya, dan mengirimkannya ke sistem antena terdistribusi untuk memperluas jarak komunikasi. Adapun spesifikasi teknis untuk perangkat Optical Master Unit (OMU) dan Optical Remote Unit (ORU) .
+Komponen –komponen unit Avertac
+Multi Splitter:
+Perangkat ini membagi sinyal RF downlink/uplink secara merata menjadi beberapa output, yang kemudian dikirim ke OMU atau multi-kopler Penerima.
+Desain simetris Uplink dan Downlink diadopsi untuk memastikan keseimbangan jalur sinyal di seluruh sistem. setelah menghilangkan beberapa sinyal, sinyal utama masih dapat langsung digunakan untuk keluaran antena RF dengan insertion loss yang lebih rendah.
 
---- Halaman 6 ---
-3.Smart Indoor Antena :
-Antena yg dilengkapi dengan dua modul antena, yang menyediakan transmisi independen antara sinyal 
-radio dan sinyal Ibeacon tanpa saling mengganggu. 
-Antena ini ditenagai power melalui kabel koaksial dan antenna ini dilengkapi dengan chip internal untuk 
-mendeteksi status catu daya dan level sinyal radio yang diterima oleh antena. 
-Pada saat level sinyal lebih rendah dari jangkauan yang ditetapkan, chip akan memberikan indikasi berkedip 
-melalui lampu indikator eksternal. 
+--- Slide 6 ---
+Smart Indoor Antena :
+Antena yg dilengkapi dengan dua modul antena, yang menyediakan transmisi independen antara sinyal radio dan sinyal Ibeacon tanpa saling mengganggu.
+Antena ini ditenagai power melalui kabel koaksial dan antenna ini dilengkapi dengan chip internal untuk mendeteksi status catu daya dan level sinyal radio yang diterima oleh antena.
+Pada saat level sinyal lebih rendah dari jangkauan yang ditetapkan, chip akan memberikan indikasi berkedip melalui lampu indikator eksternal.
 
---- Halaman 7 ---
-Tradi&onal Two-way Radio System
-•Unable to detect the location of the damage 
-•Restrictions on expansion 
+--- Slide 7 ---
+Traditional Two-way Radio System
+Unable to detect the location of the damage
+Restrictions on expansion
 
---- Halaman 8 ---
+--- Slide 8 ---
 System Radio Two-way Fiber DAS
-•Independent Interference free zone 
-•Can identify the location of damage 
-•Easy to expand
+Independent Interference free zone
+Can identify the location of damage
+Easy to expand
 
---- Halaman 9 ---
+--- Slide 9 ---
 How to connect equipment in base station
-•Repeater
-•Combiner Platform
-•OMU/ fiber rack
+Repeater
+Combiner Platform
+OMU/ fiber rack
 
---- Halaman 11 ---
+--- Slide 11 ---
 ANTENNA COMPONENTS
-Smart Ultra-thin Antenna  
-Visual status,strong protection,management platform 
+Smart Ultra-thin Antenna
+Visual status, strong protection, management platform
 Distributed Antenna  System
-Type of 
-area
-Antenna coverage distance （in maximum capacity) ORU coverage area 
+Type of area
+Antenna coverage distance （in maximum capacity)
+ORU coverage area
 （in maximum capacity)
 Parking area
 Wall area
-49-98ft (
-15-35m) 50,000 ft2 
-(4,600 m2)32-49ft (10-15m)
+49-98ft (15-35m)
+50,000 ft2 (4,600 m2)
+32-49ft (10-15m)
 
---- Halaman 12 ---
-•RFoF Distributed Antenna system
-•Standard Coverage Design
-•All in one BaseStation and Smart 
-Walkie-talkie
-•Cloud-base application
+--- Slide 12 ---
+RFoF Distributed Antenna system
+Standard Coverage Design
+All in one BaseStation and Smart Walkie-talkie
+Cloud-base application
 
-
---- Halaman 13 ---
-Push Notification, 
-rapid response
-trouble shooting
-system information
-locate faulty
-equipment map  
-Service tracker, 
-clear SOP
+--- Slide 13 ---
 Nuts
-Operation Tool •Notificationmanagement •Workflow processing •Onsite task photo upload
+Operation Tool
+Notification management
+Workflow processing
+Onsite task photo upload
 
-
---- Halaman 14 ---
-Base on metropolis Fiber DAS Two
- -
-way Radios system
+--- Slide 14 ---
+Base on metropolis Fiber DAS Two-way Radios system
 Weak signal strength area
-Strong signal 
-strength area
-•Signal control in Building & Avoid signal leakage 
-•Easy to obtain frequency application
+Strong signal strength area
+Signal control in Building & Avoid signal leakage
+Easy to obtain frequency application
 
---- Halaman 15 ---
-Outdoor boundary signal strength coverage
-Indoorsignalcoverage
-Fiber DAS Two
--
-way Radio system 
-Focus on Coverage area 
+--- Slide 15 ---
+Fiber DAS Two-way Radio system
+Focus on Coverage area
 
-
---- Halaman 16 ---
-Cellular
-Signal around antenna is the 
-basic cover area
+--- Slide 16 ---
 DistriNET Standard Coverage Zone
 
---- Halaman 17 ---
-Officearea Commercialarea
-Publicarea Office area
-Individual base station
-Seamlessly connect the signal distribution 
-of ground and underground buildings
-Each zone of the area has its individual base station, to avoid 
-signal disturbance and to provide enough privacy. Meanwhile, the 
-coverage of all public areas are grid-connected, to ensure effective 
-communication when working in all public area.
+--- Slide 17 ---
+Each zone of the area has its individual base station, to avoid signal disturbance and to provide enough privacy. Meanwhile, the coverage of all public areas are grid-connected, to ensure effective communication when working in all public area.
 
---- Halaman 18 ---
-Penerapan sistem two way radio melalui ﬁber optik dengan daya watt yang tidak terlalu besar dapat 
-memberikan beberapa solusi dan dapat diterapkan di berbagai kondisi lokasi, antara lain:
+--- Slide 18 ---
+Penerapan sistem two way radio melalui fiber optik dengan daya watt yang tidak terlalu besar dapat memberikan beberapa solusi dan dapat diterapkan di berbagai kondisi lokasi, antara lain:
 SOLUSI, KEUNGGULAN DAN LOKASI PENGGUNAAN PRODUK EVERTAC
-1.Penggunaan Konversi Optik-Elektrik: 
-Menggunakan perangkat konversi optik-elektrik di kedua ujung fiber optik untuk mengubah sinyal optik 
-menjadi sinyal listrik yang dapat digunakan oleh perangkat two way radio. Solusi ini cocok untuk area yang 
-memerlukan isolasi elektris atau di mana interferensi elektromagnetik menjadi masalah.
+Penggunaan Konversi Optik-Elektrik:
+Menggunakan perangkat konversi optik-elektrik di kedua ujung fiber optik untuk mengubah sinyal optik menjadi sinyal listrik yang dapat digunakan oleh perangkat two way radio. Solusi ini cocok untuk area yang memerlukan isolasi elektris atau di mana interferensi elektromagnetik menjadi masalah.
 2. Pengiriman transmisi Sinyal Jarak Jauh:
- Fiber optik memungkinkan untuk mentransmisikan sinyal radio jarak jauh tanpa degradasi yang signifikan, 
-bahkan dengan daya watt yang rendah. Solusi ini cocok untuk area terpencil, kampus besar, atau lingkungan 
-Kawasan industri yang luas.
+Fiber optik memungkinkan untuk mentransmisikan sinyal radio jarak jauh tanpa degradasi yang signifikan, bahkan dengan daya watt yang rendah. Solusi ini cocok untuk area terpencil, kampus besar, atau lingkungan Kawasan industri yang luas.
 
---- Halaman 19 ---
-3. Kapasitas dan Keamanan: 
-Fiber optik dapat menangani kapasitas data yang tinggi dan lebih aman dari serangan elektromagnetik atau 
-penyadapan dibandingkan dengan kabel tembaga. Ini membuatnya ideal untuk aplikasi di kawasan- 
-kawasan dengan keamanan yang kritis seperti pemerintahan atau militer.
-4. Reduksi Interferensi: 
-Mengurangi interferensi radio frekuensi (RF) dengan menggunakan fiber optik dapat meningkatkan 
-kejernihan dan keandalan komunikasi, terutama di area perkotaan yang padat atau di sekitar instalasi listrik 
-besar.
+--- Slide 19 ---
+3. Kapasitas dan Keamanan:
+Fiber optik dapat menangani kapasitas data yang tinggi dan lebih aman dari serangan elektromagnetik atau penyadapan dibandingkan dengan kabel tembaga. Ini membuatnya ideal untuk aplikasi di kawasan- kawasan dengan keamanan yang kritis seperti pemerintahan atau militer.
+4. Reduksi Interferensi:
+Mengurangi interferensi radio frekuensi (RF) dengan menggunakan fiber optik dapat meningkatkan kejernihan dan keandalan komunikasi, terutama di area perkotaan yang padat atau di sekitar instalasi listrik besar.
 
---- Halaman 20 ---
-•Kampus Universitas: 
+--- Slide 20 ---
+Kampus Universitas:
 Untuk komunikasi internal dan keamanan kampus.
-•Kawasan Industri: 
+Kawasan Industri:
 Untuk pengawasan dan koordinasi di antara area produksi yang luas.
-•Kawasan Pemerintahan: 
+Kawasan Pemerintahan:
 Untuk komunikasi antara gedung pemerintahan yang berjauhan.
-•Daerah Sensitif terhadap Interferensi: 
+Daerah Sensitif terhadap Interferensi:
 Di mana kejernihan sinyal sangat penting, seperti bandara atau stasiun kereta api.
 Kondisi lokasi yang dapat menerapkan solusi ini meliputi:
 
---- Halaman 22 ---
+--- Slide 22 ---
 Successful Cases
 @ EVERTAC PROFILE
 
---- Halaman 23 ---
+--- Slide 23 ---
 @ EVERTAC PROFILE
 SHANGHAI TOWER
-ULTRA HIGH-RISE BUILDING
+Ultra High-rise Building
 Top 1 in China
 
---- Halaman 24 ---
+--- Slide 24 ---
 @ EVERTAC PROFILE
 @ EVERTAC PROFILE
-The biggest conven2on center in Asia
-CONVENTION 
-CENTER
+The biggest convention center in Asia
+Convention center
 CHINA NATIONALCONVENTION CENTER
 
-
---- Halaman 25 ---
+--- Slide 25 ---
 @ EVERTAC PROFILE
-LARGE-SCALE ZONE
-SHANGHAI WEST 
-BANK MEDIA PORT
-To be global leading intelligent industrial port, 
-and the most energetic “New bund”in the future 
+Large-scale zone
+Shanghai West Bank media port
+To be global leading intelligent industrial port,
+and the most energetic “New bund”in the future
 
-
---- Halaman 26 ---
-FINANCE CENTER
+--- Slide 26 ---
+Finance center
 @ EVERTAC PROFILE
 SHANGHAI
 INTERNATIONAL
 FINANCE CENTER
 
---- Halaman 27 ---
-HOTEL
+--- Slide 27 ---
+Hotel
 @ EVERTAC PROFILE
-MANDARIN ORIENTAL 
-PUDONG SHANGHAI
+Mandarin Oriental Pudong shanghai
 Forbes 5-Star Luxury Hotel
 
-
---- Halaman 28 ---
+--- Slide 28 ---
 @ EVERTAC PROFILE
-UNDERGROUND SPACE
-GUANGZHOU WANBO 
-UNDERGROUND SPACE
+Underground space
+Guangzhou Wanbo underground space
 Will be the larges+t underground space worldwide
 
-
---- Halaman 29 ---
+--- Slide 29 ---
 @ EVERTAC PROFILE
-THEME PARK
-UNIVERSAL BEIJING RESORT
+Theme Park
+Universal Beijing Resort
 The biggest Universal resort in the world
 
-
---- Halaman 30 ---
+--- Slide 30 ---
 @ EVERTAC PROFILE
 @ EVERTAC PROFILE
-EVENT 
-ACTIVITY
+Event activity
 SHANGHAI F1 INTERNATIONAL CIRCUIT
+
+--- Slide 31 ---
+Chemical Plant
+@ EVERTAC PROFILE
+COVESTRO
+SHANGHAI
+INTERGRATION BASE
+
+--- Slide 32 ---
+@ EVERTAC PROFILE
+@ EVERTAC PROFILE
+MEGA factories
+High automation
+SHANGHAI TESLA FACTORY
+
+--- Slide 33 ---
+Healthcare
+@ EVERTAC PROFILE
+GUANGZHOU WOMEN’S AND
+CHILDREN’S MEDICAL CENTER
+
+--- Slide 34 ---
+@ EVERTAC PROFILE
+public construction
+Shanghai Museum
+
+--- Slide 35 ---
+@ EVERTAC PROFILE
+Airport
+Shanghai Pudong International Airport
+
+--- Slide 36 ---
+@ EVERTAC PROFILE
+@ EVERTAC PROFILE
+A giant cross-sea bridge with a total investment over 120 billion yuan
+Land
+traffic
+HONGKONG-ZHUHAI-MACAO BRIDGE
+
+--- Slide 37 ---
+@ EVERTAC PROFILE
+metro
+tianjin metro
+
+--- Slide 38 ---
+@ EVERTAC PROFILE
+@ EVERTAC PROFILE
+Tunnel
+A road tunnel cross river with a length over 5000 meters
+SHANGHAI XIANGYIN ROAD TUNNEL
+
+--- Slide 39 ---
+@ EVERTAC PROFILE
+EVERTAC, your business partner beyond expectation
+
+--- Slide 40 ---
+TERIMA KASIH

@@ -1,0 +1,2 @@
+### Sheet: Sheet1
+Nama Account | Contact Person | Nomor Telepon | Alamat | Nama Pihak Pertama | Nama Pihak Kedua | Rasio (I:II) | Shakehands | Validasi |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  | 

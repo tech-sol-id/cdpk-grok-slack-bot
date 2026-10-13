@@ -1,0 +1,32 @@
+BUSINESS PROPOSAL
+CDPK X KITLT
+
+PROJECT TIMELINE
+
+KEBUTUHAN KITLT
+Exclusivity
+Project Expert
+Presales Presence
+Stable Communication Infrastructure
+Fiber Optic Network
+
+OUR PARTNER’S PORTOFOLIO
+Exclusivity
+Project Expert
+Presales Presence
+Stable Communication Infrastructure
+Fiber Optic Network
+
+SOLUSI KOMUNIKASI: DMR
+
+SOLUSI KOMUNIKASI: POC
+
+SOLUSI KOMUNIKASI: GATEWAY
+
+INTEGRASI KEAMANAN: CCTV TRIGGER ALARM
+
+INFRASTRUKTUR DIGITAL: JARINGAN FIBER OPTIC
+
+AFTERSALES SERVICE
+
+ESTIMASI ANGGARAN

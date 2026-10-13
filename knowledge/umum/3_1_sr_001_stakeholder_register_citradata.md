@@ -1,0 +1,152 @@
+### Sheet: 🏠 Cover & Instruksi
+PT CITRADATA PURNAKHARISMA — STAKEHOLDER REGISTER |  | 
+SR-001 | Revisi 00 | Register Pihak Berkepentingan ISO 9001:2015 Klausul 4.2 |  | 
+Distributor Resmi Motorola Solutions | Skywoods | CCTV | Instalasi & ATEX Service Center |  | 
+ | No. Dokumen | SR-001
+ | Revisi | 00
+ | Status | DRAFT
+ | Tanggal | Mei 2026
+ | Berlaku untuk | Semua Divisi
+ | Disusun oleh | Management Representative
+PETUNJUK PENGGUNAAN |  | 
+ | 1. Stakeholder Register Utama (Sheet 2) | 
+ | Sheet utama berisi daftar 27 pihak berkepentingan lengkap dengan rating Pengaruh & Kepentingan (1-5), prioritas, risiko, peluang, metode komunikasi, dan tindak lanjut. Gunakan filter kolom untuk mencari/menyortir. | 
+ | 2. Matriks Prioritas (Sheet 3) | 
+ | Matriks 5x5 yang memvisualisasikan posisi setiap stakeholder berdasarkan Pengaruh (sumbu X) vs Kepentingan (sumbu Y). Kuadran: MERAH=Kelola Ketat, KUNING=Pertahankan Kepuasan, BIRU=Tetap Informasikan, ABU=Monitor. | 
+ | 3. Communication Plan (Sheet 4) | 
+ | Rencana komunikasi terstruktur per stakeholder: tujuan, media/channel, frekuensi, PIC, dan konten komunikasi. Update saat ada perubahan kebijakan komunikasi. | 
+ | 4. Review Log (Sheet 5) | 
+ | Catat setiap kali register ini ditinjau: tanggal, reviewer, perubahan yang dilakukan, dan versi dokumen. Review minimal setahun sekali dalam Tinjauan Manajemen. | 
+ | 5. Input Data Aktual | 
+ | Sel yang perlu diisi: Status Hubungan (Kolom O Sheet 2), Catatan Tindak Lanjut (Kolom P), dan Update Tanggal Review (Sheet 5). Sel berwarna KUNING = perlu diperbarui. | 
+ | 6. Conditional Formatting | 
+ | Warna otomatis: 🔴 MERAH MUDA = Prioritas High (skor ≥16), 🟡 KUNING = Prioritas Medium (skor 9-15), 🟢 HIJAU = Prioritas Low (skor ≤8). Formula di Kolom I menghitung otomatis. | 
+LEGENDA WARNA & RATING |  | 
+ | Prioritas HIGH (Skor ≥16) | Kelola Ketat — butuh perhatian penuh, komunikasi intensif
+ | Prioritas MEDIUM (Skor 9–15) | Pertahankan Kepuasan — komunikasi rutin dan terstruktur
+ | Prioritas LOW (Skor ≤8) | Tetap Informasikan / Monitor — komunikasi berkala
+ | Kategori Internal | Stakeholder di dalam organisasi PT Citradata
+ | Kategori Eksternal Komersial | Mitra, pelanggan, dan pemasok di luar organisasi
+ | Kategori Regulatori | Lembaga pemerintah dan regulator
+PT Citradata Purnakharisma  |  SR-001 Stakeholder Register  |  Rev.00  |  DOKUMEN QMS RAHASIA |  | 
+
+### Sheet: 📋 Register Utama
+REGISTER PIHAK BERKEPENTINGAN — PT CITRADATA PURNAKHARISMA  |  SR-001 Rev.00 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  | 
+ISO 9001:2015 Klausul 4.2 — Isi kolom O (Status Hubungan) dan P (Catatan) sesuai kondisi terkini perusahaan |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  | 
+No. | Pihak Berkepentingan | Kategori | Sub-Kategori | Kebutuhan & Harapan Utama | Persyaratan Relevan untuk QMS Citradata | Pengaruh
+terhadap QMS
+(1–5) | Kepentingan
+bagi QMS
+(1–5) | Skor
+(G×H) | Prioritas
+(High/Med/Low) | Risiko jika Kebutuhan TIDAK Terpenuhi | Peluang jika Kebutuhan Terpenuhi | Metode Komunikasi | Frekuensi
+Komunikasi | PIC di Citradata | Status
+Hubungan | Catatan / Tindak Lanjut
+1.0 | Dewan Direksi / Pemegang Saham | Internal | Manajemen Puncak | Pertumbuhan omzet & profitabilitas; ROI investasi QMS; kepemimpinan pasar; transparansi kinerja bisnis | Sasaran mutu harus selaras KPI bisnis; laporan kinerja QMS berkala; QMS mendukung ekspansi ATEX & MCX | 5.0 | 5.0 | 25 | 🔴 HIGH | QMS tidak mendapat dukungan sumber daya; investasi mandek; sertifikasi ISO gagal | Dukungan penuh: anggaran QMS, rekrutmen teknisi ATEX, pengembangan layanan baru | Tinjauan Manajemen formal + laporan bulanan | Tinjauan: Tahunan | Laporan: Bulanan | Management Representative | Aktif | Sponsor utama QMS; keputusan investasi ATEX ada di level ini
+2.0 | Management Representative (MR) | Internal | QMS Champion | Kewenangan yang jelas; dukungan lintas divisi; akses informasi & sistem; anggaran QMS yang memadai | Prosedur pengendalian dokumen (PR-001); rekaman audit; koordinasi CAPA; laporan ke Direksi | 5.0 | 5.0 | 25 | 🔴 HIGH | QMS tidak terkoordinasi; temuan audit tidak ditindaklanjuti; sertifikasi terancam | QMS berjalan efektif; sertifikasi ISO diraih & dipertahankan; budaya mutu terbangun | Rapat koordinasi divisi + komunikasi langsung | Mingguan | Direktur Utama | Aktif | Titik sentral seluruh aktivitas QMS; harus memiliki akses ke semua divisi
+3.0 | Manajer Sales & Marketing | Internal | Karyawan — Manajer | Target penjualan yang realistis; tools CRM; data produk akurat; dukungan teknis pre-sales; komisi yang adil | Prosedur penawaran (PR-005); prosedur kontrak (PR-006); KPI SM-01 s.d. SM-04; laporan penjualan | 4.0 | 5.0 | 20 | 🔴 HIGH | Pipeline tidak terkelola; KPI penjualan tidak tercapai; kepuasan pelanggan menurun | Pipeline terstruktur; conversion rate meningkat; kepuasan pelanggan meningkat (CSI) | Rapat divisi + email + WhatsApp Business | Mingguan | Direktur Utama / MR | Aktif | PIC utama KPI SM-01–SM-04; perlu CRM untuk optimalkan proses
+4.0 | Tim Sales (Individu) | Internal | Karyawan — Staf | Target yang terukur dan adil; produk knowledge yang up-to-date; tools penjualan; dukungan pre-sales teknis | Kompetensi produk terdokumentasi; Training Matrix; SOP penawaran | 3.0 | 4.0 | 12 | 🟡 MEDIUM | Konsentrasi revenue pada individu kunci; risiko kehilangan akun saat turnover | Distribusi akun merata; redundansi kompetensi; pertumbuhan penjualan organik | Briefing produk + rapat tim | Mingguan | Manajer Sales | Aktif | Distribusikan akun agar tidak bergantung pada 1 orang; susun succession plan
+5.0 | Staf Marketing | Internal | Karyawan — Staf | Arahan konten yang jelas per brand; anggaran marketing yang memadai; tools digital marketing | Brand guidelines Motorola & Skywoods; jadwal konten; KPI brand awareness | 3.0 | 3.0 | 9 | 🟡 MEDIUM | Brand awareness rendah; leads berkualitas rendah; konten tidak konsisten | Lead generation meningkat; positioning brand kuat; edukasi pasar tentang produk asli | Briefing konten mingguan + tools manajemen konten | Mingguan | Manajer Sales | Aktif | Tim kecil (2 orang) untuk 3 lini produk; pertimbangkan outsource konten
+6.0 | Manajer Operasional (Gudang & Distribusi) | Internal | Karyawan — Manajer | SOP gudang yang jelas; sistem WMS; target KPI yang realistis; SDM gudang yang cukup | PR-009 (gudang); PR-010 (distribusi); KPI OP-01 & OP-02; prosedur FIFO; laporan stock opname | 4.0 | 5.0 | 20 | 🔴 HIGH | Stock-out atau overstock; keterlambatan pengiriman; akurasi inventaris rendah | Akurasi inventaris ≥98%; OTDR ≥95%; efisiensi biaya logistik meningkat | Laporan operasional + rapat koordinasi | Mingguan | Direktur Utama / MR | Aktif | Prioritas: implementasi WMS dan prosedur stock opname formal
+7.0 | Tim Gudang & Logistik | Internal | Karyawan — Staf | Prosedur kerja yang jelas; peralatan yang memadai; lingkungan kerja yang aman; K3 terpenuhi | SOP penerimaan barang (PR-008); SOP penyimpanan; prosedur K3; checklist pengiriman | 3.0 | 4.0 | 12 | 🟡 MEDIUM | Kerusakan / kehilangan produk; kecelakaan kerja; inakurasi stok | Damage rate <0,5%; keselamatan kerja terjaga; proses pengiriman akurat dan cepat | Briefing harian + papan visual SOP | Harian / Mingguan | Manajer Operasional | Aktif | Pastikan SOP tercetak dan dipasang di area gudang; training K3 berkala
+8.0 | Manajer Technical & Service (Workshop) | Internal | Karyawan — Manajer | Roadmap sertifikasi ATEX yang jelas; anggaran peralatan workshop; kompetensi tim yang berkembang | PR-011 (instalasi); PR-012 (workshop & servis); SV-01–SV-04; checklist ATEX; rekaman Work Order | 5.0 | 5.0 | 25 | 🔴 HIGH | Workshop tidak dapat melayani segmen oil & gas; SV-04 non-compliant; risiko kecelakaan | Revenue dari ATEX & workshop berulang; reputasi sebagai service center terpercaya | Rapat teknis + koordinasi per proyek | Mingguan / Per Proyek | Direktur Utama / MR | Aktif | PRIORITAS TINGGI: roadmap sertifikasi IECEx & ATEX harus ditetapkan segera
+9.0 | Teknisi Workshop | Internal | Karyawan — Staf | Pelatihan teknis reguler (DMR, MCX, ATEX); tools & peralatan memadai; prosedur servis yang jelas | Training Matrix teknis; rekaman sertifikasi IECEx; Work Order standar; checklist servis | 4.0 | 5.0 | 20 | 🔴 HIGH | Kualitas servis tidak konsisten; risiko keselamatan ATEX; produktivitas rendah | First-Time Fix Rate ≥85%; TAT ≤7 hari; zero ATEX incident | Briefing teknis + dokumen teknis Motorola | Mingguan | Manajer Technical & Service | Aktif | Hanya 6 teknisi — bottleneck; rekrut 2–3 teknisi tambahan dengan target 2025
+10.0 | Manajer Human Resource | Internal | Karyawan — Manajer | Dukungan manajemen untuk program SDM; anggaran rekrutmen & training; akses data kinerja karyawan | PR-017 (kompetensi); Training Matrix; rekaman pelatihan ISO; prosedur rekrutmen; ESS survey | 3.0 | 4.0 | 12 | 🟡 MEDIUM | Turnover tinggi; kompetensi tidak berkembang; ISO training tidak terlaksana | Training completion 100%; turnover <15%; employee satisfaction ≥3,8/5 | Laporan HR + rapat koordinasi divisi | Bulanan | Direktur Utama | Aktif | Fokus pada retensi karyawan teknis; susun jalur karir yang jelas
+11.0 | Manajer Keuangan & Akuntansi | Internal | Karyawan — Manajer | Data penjualan yang akurat dan tepat waktu; proses AR yang efisien; sistem pelaporan keuangan yang andal | PR-001 (dokumen); KPI KU-01 (invoice accuracy); KU-02 (AR collection); rekaman transaksi | 3.0 | 4.0 | 12 | 🟡 MEDIUM | Cash flow terganggu; laporan tidak akurat; audit keuangan bermasalah | Invoice accuracy ≥99%; AR collection ≥90% dalam credit term; laporan keuangan akurat | Laporan keuangan + rapat lintas divisi | Bulanan | Direktur Utama | Aktif | Koordinasi erat dengan Sales untuk data piutang dan dengan Ops untuk COGS
+12.0 | Staf HR & Keuangan | Internal | Karyawan — Staf | SOP kerja yang jelas; sistem yang mendukung; komunikasi internal yang baik; beban kerja yang adil | Prosedur administrasi; rekaman pelatihan; template laporan standar | 2.0 | 3.0 | 6 | 🟢 LOW | Kesalahan administrasi; ketidakpuasan karyawan; inefisiensi proses | Akurasi data HR & keuangan; efisiensi proses administrasi; kepuasan karyawan meningkat | Email internal + rapat divisi | Bulanan | Manajer HR / Manajer Keuangan | Aktif | Standarisasi template laporan dan prosedur administrasi HR & keuangan
+13.0 | Motorola Solutions (Principal Utama — USA/APAC) | Eksternal | Principal | Target penjualan tahunan tercapai; kepatuhan kontrak distribusi; proteksi brand; laporan penjualan akurat; kompetensi teknis tim | Maintain authorized distributor status; laporan bulanan ke Motorola; sertifikasi teknis tim; brand guidelines compliance; zero grey market | 5.0 | 5.0 | 25 | 🔴 HIGH | Kehilangan status distributor resmi; pencabutan hak distribusi; kehilangan akses produk & support | Bonus kinerja dari Motorola; akses produk eksklusif; co-marketing support; dukungan teknis prioritas | Review performance triwulanan + laporan bulanan + kunjungan principal | Bulanan / Triwulanan | Direktur Utama / Manajer Sales | Aktif | STAKEHOLDER TERKRITIS — monitor KPI Motorola setiap bulan; bangun hubungan dengan APAC rep
+14.0 | i-safe Mobile GmbH (Principal ATEX) | Eksternal | Principal | Kepatuhan prosedur instalasi & servis ATEX; kompetensi teknisi bersertifikat IECEx; dokumentasi lengkap; pasar Indonesia berkembang | Prosedur ATEX sesuai standar IECEx; rekaman sertifikasi; checklist keselamatan; laporan kinerja pasar Indonesia | 5.0 | 5.0 | 25 | 🔴 HIGH | i-safe tidak memberikan authorization → tidak bisa masuk pasar ATEX; risiko hukum | Menjadi i-safe authorized service center Indonesia → revenue baru di segmen oil & gas | Koordinasi per proyek + laporan kinerja | Per Proyek / Semesteran | Manajer Technical & Service | Perlu Dikembangkan | STATUS KRITIS: kemitraan ATEX belum fully established; percepat proses sertifikasi IECEx
+15.0 | Skywoods International (Principal Diving/Outdoor) | Eksternal | Principal | Penetrasi pasar Indonesia sesuai target; brand guidelines dipatuhi; laporan penjualan & marketing akurat; umpan balik pasar | Laporan kinerja Skywoods terpisah; materi marketing sesuai panduan; feedback pasar; program dealer Skywoods | 4.0 | 4.0 | 16 | 🔴 HIGH | Target penjualan Skywoods tidak tercapai; dukungan marketing berkurang; potensi kehilangan lini produk | Eksklusivitas distribusi Skywoods; co-marketing budget; bundling produk diving | Laporan bulanan + review strategi semesteran | Bulanan / Semesteran | Manajer Sales / Staf Marketing | Aktif | Kembangkan online store resmi Skywoods; kolaborasi dengan KOL komunitas diving Indonesia
+16.0 | Dealer / Reseller Motorola Indonesia | Eksternal | Mitra Distribusi | Margin yang kompetitif; dukungan marketing & materi promosi; training produk reguler; proses klaim garansi yang mudah; stok yang tersedia | Program dealer terdokumentasi; SLA pengiriman ke dealer; prosedur klaim garansi dealer; pelatihan produk terjadwal | 3.0 | 4.0 | 12 | 🟡 MEDIUM | Dealer beralih ke distributor lain; kehilangan channel distribusi; penurunan jangkauan pasar | Jangkauan pasar meluas; volume penjualan meningkat; revenue berulang dari reorder dealer | Pertemuan dealer bulanan + newsletter + WhatsApp grup | Bulanan | Manajer Sales | Aktif | Petakan dealer aktif vs pasif; program insentif untuk top dealer; dealer training roadmap
+17.0 | Pelanggan Korporat — Oil & Gas (Pertamina, Total, dll.) | Eksternal | Pelanggan Korporat | Produk berstandar ATEX & IECEx; pengiriman tepat waktu; dukungan teknis 24/7; garansi resmi; harga kompetitif; dokumentasi teknis lengkap; SLA tertulis | Sertifikasi ATEX produk; SLA pengiriman & servis; prosedur after-sales prioritas; dokumentasi teknis; berita acara serah terima | 5.0 | 5.0 | 25 | 🔴 HIGH | Kehilangan kontrak besar; reputasi rusak; risiko liability jika perangkat non-compliant di zona berbahaya | Kontrak jangka panjang; maintenance contract berulang; referensi untuk proyek baru; volume besar | Key account management + site visit + laporan kontrak | Triwulanan / Per Proyek | Manajer Sales / Manajer Technical | Aktif | Segmen terpenting untuk MCX & ATEX; tetapkan dedicated KAM untuk setiap akun besar
+18.0 | Pelanggan Korporat — Pertambangan (Vale, Freeport, dll.) | Eksternal | Pelanggan Korporat | Sistem komunikasi yang andal di area remote & tambang; perangkat tahan lingkungan keras; instalasi & commissioning profesional; after-sales responsif | Prosedur instalasi di area terpencil; SLA servis (TAT ≤7 hk); dokumentasi sistem; training operator di lokasi | 5.0 | 5.0 | 25 | 🔴 HIGH | Kehilangan proyek pertambangan besar; reputasi buruk jika sistem gagal di lokasi kritis | Proyek berskala besar; repeat order reguler; referensi ke kontraktor pertambangan lain | Key account management + site visit | Semesteran / Per Proyek | Manajer Sales / Manajer Technical | Aktif | Pasar dengan barrier to entry tinggi tapi revenue besar; investasi dalam hubungan & technical support
+19.0 | Pelanggan Korporat — Pemerintah (Kementerian, TNI, Polri, Pemda) | Eksternal | Pelanggan Pemerintah | Kepatuhan regulasi pengadaan (LKPP, e-Katalog); harga sesuai HPS; produk bersertifikat; dukungan after-sales jangka panjang; dokumentasi teknis untuk APIP | Dokumentasi tender; prosedur pengiriman sesuai PO pemerintah; garansi formal; laporan kinerja kontrak pemerintah | 4.0 | 5.0 | 20 | 🔴 HIGH | Gagal memenuhi syarat tender; sanksi LKPP; kehilangan akses pengadaan pemerintah | Kontrak pengadaan pemerintah jangka panjang; volume stabil; reputasi meningkat | Respon RFQ <24 jam + laporan per PO | Per Tender / Per Kontrak | Manajer Sales | Aktif | Prioritas: daftarkan produk di e-Katalog LKPP; pelajari regulasi TKDN untuk produk Motorola
+20.0 | Pelanggan — Industri Manufaktur | Eksternal | Pelanggan Korporat | Solusi komunikasi yang efisien untuk operasional pabrik; harga kompetitif; pengiriman cepat; dukungan purna jual yang responsif | SLA pengiriman; prosedur penanganan keluhan (PR-013); garansi produk; after-sales support | 3.0 | 4.0 | 12 | 🟡 MEDIUM | Kehilangan segmen manufaktur ke kompetitor; penurunan volume penjualan | Segmen yang berkembang seiring industrialisasi; potensi bundling CCTV + komunikasi | Sales visit + email + follow-up telepon | Per Proyek / Bulanan | Tim Sales | Aktif | Segmen potensial untuk bundling Motorola + CCTV; kembangkan paket solusi pabrik
+21.0 | Pelanggan Retail — Skywoods (Komunitas Diving & Outdoor) | Eksternal | Pelanggan Retail | Produk berkualitas dengan garansi; harga kompetitif; ketersediaan aksesoris; layanan purna jual; kemudahan pembelian online | Prosedur klaim garansi Skywoods; channel pembelian online; respons keluhan <48 jam | 2.0 | 3.0 | 6 | 🟢 LOW | Reputasi Skywoods negatif di komunitas; churn pelanggan; review buruk di media sosial | Brand awareness meningkat; komunitas diving sebagai brand ambassador; repeat purchase | Media sosial + marketplace + email newsletter | Bulanan | Staf Marketing | Aktif | Buka official store di Tokopedia/Shopee; kolaborasi KOL diving; program loyalitas komunitas
+22.0 | Pemasok Logistik & Ekspedisi (JNE, SiCepat, dll.) | Eksternal | Pemasok | Volume pengiriman yang stabil; pembayaran tepat waktu; komunikasi yang jelas mengenai paket sensitif; prosedur klaim kerusakan yang adil | SLA pengiriman terdokumentasi; prosedur klaim kerusakan (PR-010); evaluasi vendor logistik semesteran; packing standard | 3.0 | 4.0 | 12 | 🟡 MEDIUM | Keterlambatan pengiriman; kerusakan produk; pelanggan kecewa; OTDR <95% | Pengiriman tepat waktu ≥95%; damage rate <0,5%; biaya logistik efisien | Review kinerja bulanan + koordinasi per pengiriman besar | Bulanan / Per Pengiriman | Manajer Operasional | Aktif | Evaluasi dan bandingkan 2–3 ekspedisi; gunakan ekspedisi berbeda untuk area remote
+23.0 | Bank & Lembaga Pembiayaan | Eksternal | Mitra Keuangan | Laporan keuangan yang akurat dan transparan; kepatuhan pinjaman; cash flow sehat; agunan yang memadai; track record bisnis yang baik | Akurasi laporan keuangan; proses AR collection yang efektif; dokumentasi transaksi; rekaman kontrak pelanggan sebagai jaminan | 3.0 | 3.0 | 9 | 🟡 MEDIUM | Akses kredit terbatas; suku bunga tinggi; pembatasan fasilitas kredit | Fasilitas kredit yang memadai untuk modal kerja dan investasi ATEX; terms yang menguntungkan | Laporan keuangan berkala + pertemuan review | Semesteran | Manajer Keuangan | Aktif | Jaga rasio keuangan yang sehat; dokumentasikan kontrak pelanggan besar sebagai referensi kredit
+24.0 | Kementerian Komunikasi & Informatika (Kominfo/SDPPI) | Regulatori | Regulator Telekomunikasi | Seluruh perangkat komunikasi yang dipasarkan memiliki sertifikat laik operasi SDPPI; tidak ada perangkat ilegal yang beredar; kepatuhan standar teknis | Database sertifikasi produk yang dikelola; prosedur pengecekan sertifikasi incoming (PR-008); zero pelanggaran distribusi perangkat ilegal | 4.0 | 5.0 | 20 | 🔴 HIGH | Sanksi pencabutan izin distribusi; penarikan produk dari pasar; denda; reputasi rusak | Kepastian hukum distribusi; keunggulan kompetitif atas penjual ilegal; hubungan baik dengan regulator | Monitoring regulasi berkala + komunikasi resmi saat diperlukan | Bulanan (monitoring) / Per Kejadian | Management Representative / Manajer Keuangan | Aktif | Buat database sertifikasi SDPPI untuk seluruh SKU produk; update setiap ada produk baru
+25.0 | Ditjen Minyak & Gas Bumi (MIGAS) / SKK Migas | Regulatori | Regulator MIGAS & K3 | Kepatuhan layanan instalasi & servis di fasilitas MIGAS terhadap regulasi K3 dan standar ATEX; sertifikasi perangkat sesuai zona klasifikasi | Prosedur kerja ATEX (PR-011 & PR-012); sertifikasi IECEx teknisi; dokumentasi pekerjaan di fasilitas MIGAS; zero incident | 4.0 | 5.0 | 20 | 🔴 HIGH | Larangan beroperasi di fasilitas MIGAS; sanksi hukum; risiko kecelakaan fatal; reputasi hancur | Authorization untuk bekerja di fasilitas MIGAS premium; kontrak jangka panjang dengan KKKS | Monitoring regulasi + konsultasi teknis | Triwulanan (monitoring) | Manajer Technical & Service / MR | Perlu Dikembangkan | Prioritas sertifikasi IECEx sebelum mengambil proyek ATEX di fasilitas MIGAS; konsultasi dengan SKK Migas
+26.0 | BSN (Badan Standardisasi Nasional) & KAN | Regulatori | Regulator Standardisasi | Produk yang dipasarkan memenuhi SNI yang berlaku; akreditasi laboratorium servis sesuai standar; dokumentasi teknis yang memadai | Verifikasi SNI untuk produk yang dipasarkan; prosedur incoming inspection (PR-008); dokumentasi uji lab | 2.0 | 3.0 | 6 | 🟢 LOW | Produk tidak dapat dipasarkan (jika SNI mandatory berlaku); denda; penarikan produk | Kepercayaan pelanggan meningkat; diferensiasi produk berstandar; keunggulan tender | Monitoring regulasi SNI berkala | Semesteran (monitoring) | Management Representative | Aktif | Pantau daftar SNI wajib untuk perangkat telekomunikasi; koordinasi dengan Motorola untuk dokumen teknis
+27.0 | Bea Cukai & DJBC (Direktorat Jenderal Bea dan Cukai) | Regulatori | Regulator Perdagangan | Kepatuhan deklarasi impor; pembayaran bea masuk dan PPN sesuai aturan; dokumen impor yang lengkap dan akurat | Prosedur impor yang terdokumentasi; rekaman PIB (Pemberitahuan Impor Barang); kepatuhan HS Code; penyimpanan dokumen impor ≥5 tahun | 3.0 | 4.0 | 12 | 🟡 MEDIUM | Pemblokiran impor; denda & sanksi fiskal; keterlambatan penerimaan produk; gangguan operasional | Proses impor lancar; tidak ada penundaan clearance; track record importir terpercaya | Koordinasi per shipment + audit periodik | Per Pengiriman Impor | Manajer Keuangan / Operasional | Aktif | Pastikan PPJK (forwarder) terpercaya; simpan semua dokumen PIB dan invoice sesuai ketentuan
+
+### Sheet: 📊 Matriks Prioritas
+MATRIKS PRIORITAS STAKEHOLDER — Pengaruh vs Kepentingan (5×5) |  |  |  |  |  |  |  |  |  | 
+Skala 1 (Rendah) → 5 (Tinggi) | Skor = Pengaruh × Kepentingan | Merah=Kelola Ketat | Kuning=Pertahankan Kepuasan | Biru=Tetap Informasikan | Abu=Monitor |  |  |  |  |  |  |  |  |  | 
+Pengaruh → | Pengaruh 1  ★ | Pengaruh 2  ★★ | Pengaruh 3  ★★★ | Pengaruh 4  ★★★★ | Pengaruh 5  ★★★★★
+Kepentingan
+5
+★★★★★ | — | — | — | 3. Manajer Sales & Marketing
+6. Manajer Operasional (Gudang 
+9. Teknisi Workshop
+19. Pelanggan Korporat — Pemerin
+24. Kementerian Komunikasi & Inf
+25. Ditjen Minyak & Gas Bumi (MI | 1. Dewan Direksi / Pemegang Sah
+2. Management Representative (M
+8. Manajer Technical & Service 
+13. Motorola Solutions (Principa
+14. i-safe Mobile GmbH (Principa
+17. Pelanggan Korporat — Oil & G
+18. Pelanggan Korporat — Pertamb
+Kepentingan
+4
+★★★★ | — | — | 4. Tim Sales (Individu)
+7. Tim Gudang & Logistik
+10. Manajer Human Resource
+11. Manajer Keuangan & Akuntansi
+16. Dealer / Reseller Motorola I
+20. Pelanggan — Industri Manufak
+22. Pemasok Logistik & Ekspedisi
+27. Bea Cukai & DJBC (Direktorat | 15. Skywoods International (Prin | —
+Kepentingan
+3
+★★★ | — | 12. Staf HR & Keuangan
+21. Pelanggan Retail — Skywoods 
+26. BSN (Badan Standardisasi Nas | 5. Staf Marketing
+23. Bank & Lembaga Pembiayaan | — | —
+Kepentingan
+2
+★★ | — | — | — | — | —
+Kepentingan
+1
+★ | — | — | — | — | —
+LEGENDA KUADRAN |  |  |  |  | 
+🔴 KELOLA KETAT (Skor 16–25) | Stakeholder paling kritis. Libatkan aktif, komunikasi intensif, prioritaskan kebutuhan mereka. Contoh: Motorola Solutions, Direksi, Pelanggan oil & gas, Teknisi Workshop. |  |  |  | 
+🟡 PERTAHANKAN KEPUASAN (Skor 9–15) | Berpengaruh tinggi, kepentingan moderat atau sebaliknya. Komunikasikan secara terstruktur. Contoh: Dealer, Pelanggan Pemerintah, Regulator, Bank. |  |  |  | 
+🔵 TETAP INFORMASIKAN (Skor 5–8) | Kepentingan tinggi namun pengaruh rendah. Berikan informasi yang relevan dan tepat waktu. Contoh: Komunitas Skywoods, Staf HR & Keuangan. |  |  |  | 
+⚪ MONITOR (Skor 1–4) | Pengaruh dan kepentingan rendah. Pantau secara berkala tanpa komunikasi intensif. Tidak ada stakeholder di kuadran ini saat ini. |  |  |  | 
+
+### Sheet: 📡 Communication Plan
+COMMUNICATION PLAN — STAKEHOLDER REGISTER SR-001 |  |  |  |  |  |  | 
+Rencana Komunikasi Terstruktur per Stakeholder | Update setiap ada perubahan kebijakan komunikasi |  |  |  |  |  |  | 
+No. | Stakeholder | Tujuan Komunikasi | Media / Channel | Frekuensi | Penanggung Jawab (PIC) | Konten Komunikasi | KPI Komunikasi / Ukuran Keberhasilan
+1.0 | Dewan Direksi | Laporan kinerja QMS; pengambilan keputusan investasi; review sasaran strategis | Tinjauan Manajemen formal; laporan tertulis; presentasi | Tahunan (TM) + Bulanan (laporan) | Management Representative | Laporan kinerja KPI; update status sertifikasi ISO; proposal investasi ATEX; issue kritikal | Laporan disetujui; keputusan investasi diambil dalam 30 hari
+2.0 | Management Representative | Koordinasi seluruh aktivitas QMS; eskalasi isu; update program perbaikan | Rapat koordinasi; email; komunikasi langsung | Mingguan | Direktur Utama | Status program QMS; temuan audit; CAPA; update prosedur | Seluruh CAPA ditindaklanjuti dalam SLA; laporan bulanan tepat waktu
+3.0 | Motorola Solutions (Principal) | Laporan kinerja distribusi; update produk; koordinasi target; klaim dukungan teknis | Meeting formal; laporan tertulis; email; portal partner | Bulanan (laporan) + Triwulanan (review) | Manajer Sales + Direktur Utama | Laporan penjualan bulanan; pencapaian target; permintaan support teknis; feedback produk | Target bulanan tercapai; laporan dikirim tepat waktu; zero complaint dari Motorola
+4.0 | i-safe Mobile GmbH | Koordinasi program sertifikasi ATEX; update prosedur; laporan kinerja | Video conference; email; kunjungan teknis | Per Proyek + Semesteran | Manajer Technical & Service | Update status sertifikasi IECEx; laporan kinerja servis ATEX; permintaan teknis | Sertifikasi IECEx diraih sesuai timeline; zero non-compliance ATEX
+5.0 | Skywoods International | Laporan penjualan & marketing; koordinasi strategi; feedback pasar Indonesia | Email; video call; laporan tertulis | Bulanan | Manajer Sales + Staf Marketing | Laporan penjualan Skywoods; aktivitas marketing; feedback komunitas; permintaan stok | Target Skywoods tercapai; laporan dikirim tepat waktu bulan ini
+6.0 | Dealer / Reseller Motorola | Pembaruan produk & harga; program insentif; dukungan teknis; resolusi masalah | Pertemuan dealer; newsletter; WhatsApp grup; email | Bulanan + Per Kebutuhan | Manajer Sales | Newsletter produk bulanan; program dealer; update harga; support teknis pre-sales | Dealer satisfaction score; reorder rate; jumlah dealer aktif meningkat
+7.0 | Pelanggan Oil & Gas & Pertambangan | Membangun & mempertahankan hubungan; update solusi terbaru; SLA review; resolusi keluhan | Site visit; meeting formal; email; telepon; WhatsApp | Triwulanan (visit) + Per Proyek | Manajer Sales + Manajer Technical | Update produk MCX & ATEX; laporan kinerja SLA; proposal solusi baru; after-sales report | CSI ≥4,2/5; zero unresolved complaint >48 jam; kontrak diperpanjang
+8.0 | Pelanggan Pemerintah | Respons cepat RFQ & tender; update status pengiriman; dokumentasi kontrak | Email resmi; WhatsApp; meeting koordinasi | Per Tender + Per PO | Manajer Sales | Respon RFQ; konfirmasi PO; update jadwal pengiriman; dokumentasi serah terima | RFQ direspons <24 jam; delivery on-time ≥95%; zero complaint kontrak pemerintah
+9.0 | Komunitas Skywoods (Retail) | Edukasi produk; promosi; engagement komunitas; handling keluhan online | Media sosial (IG, FB, TikTok); marketplace; email newsletter | Mingguan (konten) + Harian (respons) | Staf Marketing | Konten produk; review garansi; program loyalitas; promo seasonal | Engagement rate; follower growth; rating toko ≥4,5/5
+10.0 | Kominfo / SDPPI | Kepatuhan regulasi; permohonan sertifikasi; monitoring regulasi baru | Komunikasi resmi; portal SDPPI; konsultasi | Per Kebutuhan + Bulanan (monitoring) | Management Representative | Permohonan sertifikasi produk; pertanyaan regulasi; update perizinan | Zero produk tanpa sertifikat; zero pelanggaran distribusi
+11.0 | Ditjen MIGAS / SKK Migas | Kepatuhan regulasi ATEX; konsultasi teknis; permohonan izin kerja di fasilitas MIGAS | Komunikasi resmi; kunjungan teknis; seminar K3 | Per Proyek + Triwulanan (monitoring) | Manajer Technical & Service + MR | Permohonan izin; laporan pekerjaan ATEX; konsultasi regulasi; update standar K3 | Zero non-compliance ATEX; izin kerja di fasilitas MIGAS diraih
+12.0 | Bea Cukai & DJBC | Koordinasi clearance impor; kepatuhan dokumen; audit customs | Portal CEISA; email; koordinasi melalui PPJK/forwarder | Per Shipment Impor | Manajer Keuangan + Operasional | Dokumen PIB; deklarasi impor; respon pemeriksaan Bea Cukai | Zero penundaan clearance; zero denda atau sanksi Bea Cukai
+13.0 | Pemasok Logistik | Review kinerja pengiriman; negosiasi SLA; penanganan klaim kerusakan | Review bulanan; email; WhatsApp koordinasi | Bulanan (review) + Per Pengiriman | Manajer Operasional | Laporan OTDR; klaim kerusakan; negosiasi tarif; update jadwal pengiriman | OTDR ≥95%; damage rate <0,5%; klaim diselesaikan <5 hari kerja
+14.0 | Bank & Lembaga Keuangan | Laporan keuangan; review fasilitas kredit; pemenuhan covenant | Laporan tertulis; meeting formal | Semesteran + Per Kebutuhan | Manajer Keuangan + Direktur Utama | Laporan keuangan; proyeksi cash flow; informasi kontrak pelanggan besar | Fasilitas kredit dipertahankan; covenant terpenuhi; tidak ada keterlambatan pembayaran
+
+### Sheet: 📝 Review Log
+REVIEW LOG — SR-001 Stakeholder Register |  |  |  |  |  | 
+Catat setiap peninjauan dokumen ini. Review minimal 1× setahun dalam Tinjauan Manajemen atau saat ada perubahan signifikan. |  |  |  |  |  | 
+No. | Tanggal Review | Reviewer | Jabatan | Versi Dokumen | Perubahan yang Dilakukan / Catatan | Disetujui oleh
+1.0 | Mei 2026 | Management Representative | MR | Rev. 00 | Penerbitan pertama SR-001 Stakeholder Register sesuai ISO 9001:2015 Klausul 4.2. Berisi 27 stakeholder: 12 internal, 10 eksternal komersial, 5 regulatori. | Direktur Utama
+2.0 |  |  |  |  | [Isi deskripsi perubahan yang dilakukan pada review ini] | 
+3.0 |  |  |  |  | [Isi deskripsi perubahan yang dilakukan pada review ini] | 
+4.0 |  |  |  |  | [Isi deskripsi perubahan yang dilakukan pada review ini] | 
+5.0 |  |  |  |  | [Isi deskripsi perubahan yang dilakukan pada review ini] | 
+6.0 |  |  |  |  | [Isi deskripsi perubahan yang dilakukan pada review ini] | 
+7.0 |  |  |  |  | [Isi deskripsi perubahan yang dilakukan pada review ini] | 
+8.0 |  |  |  |  | [Isi deskripsi perubahan yang dilakukan pada review ini] | 
+9.0 |  |  |  |  | [Isi deskripsi perubahan yang dilakukan pada review ini] | 
+10.0 |  |  |  |  | [Isi deskripsi perubahan yang dilakukan pada review ini] | 
+11.0 |  |  |  |  | [Isi deskripsi perubahan yang dilakukan pada review ini] | 
