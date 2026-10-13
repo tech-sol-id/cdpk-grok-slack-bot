@@ -1,6 +1,7 @@
 import os
 import re
 import json
+import math
 import urllib.request
 import logging
 import threading
@@ -107,11 +108,11 @@ def ask_grok(messages: list) -> str:
         logger.error(f"Error memanggil xAI API: {e}")
         return f"⚠️ Terjadi kendala saat menghubungi Grok API: `{str(e)}`"
 
-def load_knowledge_base(user_level: str = "STANDARD") -> str:
-    """Membaca file Markdown (.md) dari subfolder knowledge/ sesuai kategori hak akses penanya:
-    - DIREKSI: memuat subfolder umum, finance, dan direksi (All-Access).
-    - FINANCE: memuat subfolder umum dan finance.
-    - STANDARD: hanya memuat subfolder umum.
+def retrieve_relevant_knowledge(query: str, user_level: str = "STANDARD", top_k: int = 7) -> str:
+    """Mencari dokumen paling relevan dengan pertanyaan pengguna berdasarkan hak akses:
+    - DIREKSI: mencari di subfolder umum, finance, dan direksi.
+    - FINANCE: mencari di subfolder umum dan finance.
+    - STANDARD: hanya mencari di subfolder umum.
     """
     knowledge_dir = os.path.join(os.path.dirname(__file__), "knowledge")
     if not os.path.exists(knowledge_dir):
@@ -124,30 +125,80 @@ def load_knowledge_base(user_level: str = "STANDARD") -> str:
     else:
         allowed_subfolders = {"umum"}
 
-    docs = []
+    raw_tokens = [t.lower() for t in re.findall(r'[a-zA-Z0-9]+', query) if len(t) >= 2]
+    tokens = set(raw_tokens)
+    phrases = []
+    for t in raw_tokens:
+        split_parts = re.findall(r'[a-zA-Z]+|\d+', t)
+        if len(split_parts) > 1:
+            tokens.update(split_parts)
+            phrases.append(" ".join(split_parts))
+
+    scored_docs = []
     for root, _, files in os.walk(knowledge_dir):
         rel_dir = os.path.relpath(root, knowledge_dir)
         first_segment = rel_dir.split(os.sep)[0] if rel_dir != "." else "."
 
-        # Jika file berada di subfolder kategori, filter berdasarkan hak akses
+        # Filter keamanan data level folder
         if first_segment != "." and first_segment not in allowed_subfolders:
             continue
 
-        for file in sorted(files):
+        for file in files:
             if file.endswith(".md") and file.lower() != "readme.md":
                 path = os.path.join(root, file)
                 try:
-                    with open(path, "r", encoding="utf-8") as f:
-                        content = f.read().strip()
-                        if content:
-                            category = first_segment.upper() if first_segment != "." else "UMUM"
-                            docs.append(f"### DOKUMEN [{category}]: {file}\n{content}")
-                except Exception as e:
-                    logger.warning(f"Gagal membaca knowledge file {file}: {e}")
+                    with open(path, "r", encoding="utf-8", errors="ignore") as f:
+                        content = f.read()
 
-    if docs:
-        return "\n\n---\n\n".join(docs)
-    return ""
+                    fn_lower = file.lower()
+                    content_lower = content.lower()
+
+                    score = 0.0
+
+                    # 1. Matching frasa khusus (contoh 'rg 170')
+                    for ph in phrases:
+                        if ph in fn_lower:
+                            score += 150.0
+                        elif ph in content_lower:
+                            score += 80.0
+
+                    # 2. Matching token dengan bobot nama file & log-frequency isi
+                    for t in tokens:
+                        if t in fn_lower:
+                            score += 60.0 if len(t) > 3 else 20.0
+                        c = content_lower.count(t)
+                        if c > 0:
+                            score += (1.0 + math.log(c)) * (8.0 if len(t) > 3 else 2.0)
+
+                    # 3. Boost profil umum jika mencari tentang perusahaan
+                    if "cdpk_overview" in fn_lower and any(k in tokens for k in ["cdpk", "siapa", "profil", "tentang", "perusahaan"]):
+                        score += 50.0
+
+                    if score > 0:
+                        category = first_segment.upper() if first_segment != "." else "UMUM"
+                        snippet = content[:5000]
+                        scored_docs.append((score, file, category, snippet))
+                except Exception as e:
+                    logger.warning(f"Gagal membaca {file}: {e}")
+
+    scored_docs.sort(key=lambda x: x[0], reverse=True)
+    top_docs = scored_docs[:top_k]
+
+    if not top_docs:
+        overview_path = os.path.join(knowledge_dir, "umum", "cdpk_overview.md")
+        if os.path.exists(overview_path):
+            try:
+                with open(overview_path, "r", encoding="utf-8", errors="ignore") as f:
+                    return f"### DOKUMEN [UMUM]: cdpk_overview.md\n{f.read()[:5000]}"
+            except Exception:
+                pass
+        return ""
+
+    docs_formatted = []
+    for _, fname, cat, snippet in top_docs:
+        docs_formatted.append(f"### DOKUMEN [{cat}]: {fname}\n{snippet}")
+
+    return "\n\n---\n\n".join(docs_formatted)
 
 # Daftar User ID & Email Resmi CDPK HQ (Diverifikasi Langsung dari Slack API)
 DIREKSI_USER_IDS = {"U0C1PULSVUK", "U0C2CR9NAF7", "U0C5FJNKXJR", "U0C6VQR8RT7"}
@@ -193,11 +244,11 @@ def get_user_access_level(client, user_id: str) -> dict:
         logger.warning(f"Gagal mengambil profil user {user_id}: {e}")
         return {"level": "STANDARD", "name": "Anggota Tim", "email": ""}
 
-def get_effective_system_prompt(user_access: dict = None) -> str:
-    """Menggabungkan System Prompt identitas, Hak Akses Pengguna (3-Tier RBAC), Panduan Rujukan, dan Basis Pengetahuan."""
+def get_effective_system_prompt(user_access: dict = None, query: str = "") -> str:
+    """Menggabungkan System Prompt identitas, Hak Akses Pengguna (3-Tier RBAC), Panduan Rujukan, dan Basis Pengetahuan Relevan."""
     user_name = user_access.get("name", "Anggota Tim") if user_access else "Anggota Tim"
     user_level = user_access.get("level", "STANDARD") if user_access else "STANDARD"
-    kb = load_knowledge_base(user_level)
+    kb = retrieve_relevant_knowledge(query, user_level)
 
     if user_level == "DIREKSI":
         rbac_instruction = (
@@ -241,9 +292,9 @@ def get_effective_system_prompt(user_access: dict = None) -> str:
 
     return "\n\n".join(prompt_parts)
 
-def get_thread_context(client, channel: str, thread_ts: str, bot_user_id: str, user_access: dict = None) -> list:
+def get_thread_context(client, channel: str, thread_ts: str, bot_user_id: str, user_access: dict = None, query: str = "") -> list:
     """Mengambil riwayat percakapan dalam thread agar percakapan memiliki memori/konteks."""
-    messages = [{"role": "system", "content": get_effective_system_prompt(user_access)}]
+    messages = [{"role": "system", "content": get_effective_system_prompt(user_access, query=query)}]
     try:
         result = client.conversations_replies(channel=channel, ts=thread_ts, limit=10)
         for msg in result.get("messages", []):
@@ -306,10 +357,10 @@ def handle_mention(event, say, client):
 
     # Ambil konteks jika berada dalam thread, atau buat percakapan baru
     if "thread_ts" in event:
-        conversation = get_thread_context(client, channel, thread_ts, bot_user_id, user_access)
+        conversation = get_thread_context(client, channel, thread_ts, bot_user_id, user_access, query=user_text)
     else:
         conversation = [
-            {"role": "system", "content": get_effective_system_prompt(user_access)},
+            {"role": "system", "content": get_effective_system_prompt(user_access, query=user_text)},
             {"role": "user", "content": user_text}
         ]
 
@@ -372,7 +423,7 @@ def handle_direct_message(event, say, client):
         return
 
     conversation = [
-        {"role": "system", "content": get_effective_system_prompt(user_access)},
+        {"role": "system", "content": get_effective_system_prompt(user_access, query=user_text)},
         {"role": "user", "content": user_text}
     ]
 

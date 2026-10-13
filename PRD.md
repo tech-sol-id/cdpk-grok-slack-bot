@@ -73,7 +73,7 @@ Sistem menggunakan prinsip **Separation of Concerns (Pemisahan Tanggung Jawab)**
 | :--- | :--- | :--- |
 | **Runtime & Language** | Python 3.11 / Docker | Ringan, kompatibel dengan container cloud modern. |
 | **Slack Framework** | `slack-bolt`, `slack-sdk` | Menggunakan **Socket Mode** via WebSocket outbound; tidak butuh IP publik, webhook, atau domain berbayar. |
-| **AI Engine Utama** | `openai` SDK (xAI endpoint) | Terhubung ke `https://api.x.ai/v1` dengan model `grok-2-mini` (default cepat & hemat) atau `grok-2`. |
+| **AI Engine Utama** | `openai` SDK (xAI endpoint) | Terhubung ke `https://api.x.ai/v1` dengan model `grok-4.3` (default cepat, cerdas & hemat) atau varian Grok 4 lainnya. |
 | **AI Structuring Engine** | Google Gemini 3.8 Flash | Mengonversi dokumen mentah Google Drive ke Markdown resmi secara gratis ($0 via Google AI Studio). |
 | **Cloud Hosting** | Render Free Web Service | 750 jam komputasi gratis/bulan (cukup untuk 24/7 sebulan penuh). |
 | **Cloud Ingestion Runner**| GitHub Actions | Menjalankan pipeline sinkronisasi otomatis harian dan on-demand tanpa mewajibkan komputer menyala. |
