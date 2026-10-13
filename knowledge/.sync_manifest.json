@@ -9367,5 +9367,30 @@
     "modified_time": "2026-07-22T10:10:24.000Z",
     "drive_file_id": "1ZtzdeW0D37MqyCtuBzQIfKoiwb2J2K0a",
     "synced_at": "2026-10-13T13:01:45.663565"
+  },
+  "1iC1Tb5gjueeOok26iiH3ANnZuqL4fyuB": {
+    "name": "EX201_ATEX_Certificate.pdf",
+    "subfolder": "umum",
+    "filename": "ex201_atex_certificate.md",
+    "target_path": "knowledge/umum/ex201_atex_certificate.md",
+    "modified_time": "2026-06-25T10:22:19.000Z",
+    "synced_at": "2026-10-13T23:12:55.236747"
+  },
+  "10oGu0pGvpUhWPBGK42l0r97Ajl5J1Unp": {
+    "name": "8_Mobile_Ex_Technical_Dossier.pdf",
+    "subfolder": "umum",
+    "filename": "8_mobile_ex_technical_dossier.md",
+    "target_path": "knowledge/umum/8_mobile_ex_technical_dossier.md",
+    "modified_time": "2026-07-21T15:41:38.000Z",
+    "synced_at": "2026-10-13T23:15:03.460737"
+  },
+  "1UeDa6E8pyxWzvj1oY6fomj3epI7o--CiXxMBAvKTxOk": {
+    "name": "Hiring Plan 2025",
+    "subfolder": "direksi",
+    "filename": "hiring_plan_2025.md",
+    "target_path": "knowledge/direksi/hiring_plan_2025.md",
+    "modified_time": "2024-12-20T04:42:25.788Z",
+    "drive_file_id": "1MaYXan_g6H0FPVH4sp0R6SNETnmW_Amg",
+    "synced_at": "2026-10-13T23:20:11.709764"
   }
 }
