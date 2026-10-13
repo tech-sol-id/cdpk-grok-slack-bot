@@ -1,0 +1,31 @@
+KEPUTUSAN DIREKSI 
+
+PT. TEKNOLOGI CHAYANI HARSA
+
+Nomor: 01.003/SUR/TCH.II/2025
+
+Tentang
+
+HARI LIBUR NASIONAL DAN CUTI BERSAMA TAHUN 2025 
+
+DI LINGKUNGAN PT. TEKNOLOGI CHAYANI HARSA
+
+Ditetapkan di Jakarta, 
+
+pada tanggal 28 Februari 2025
+
+JAP, Janice Jacob Kayan
+
+Direktur Utama
+
+LAMPIRAN KEPUTUSAN DIREKSI PT. TEKNOLOGI CHAYANI HARSA
+
+HARI LIBUR NASIONAL TAHUN 2025 
+
+Cuti Bersama Tahun 2025
+
+Jakarta, 28 Februari 2025
+
+JAP, Janice Jacob Kayan
+
+Direktur Utama

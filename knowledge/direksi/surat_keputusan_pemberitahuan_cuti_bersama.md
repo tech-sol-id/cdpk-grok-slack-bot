@@ -1,0 +1,31 @@
+KEPUTUSAN DIREKSI 
+
+PT. CITRADATA PURNAKHARISMA 
+
+Nomor:  
+
+Tentang
+
+HARI LIBUR NASIONAL DAN CUTI BERSAMA TAHUN 2025 
+
+DI LINGKUNGAN PT. CITRADATA PURNAKHARISMA
+
+Ditetapkan di Jakarta, 
+
+pada tanggal 28 Februari 2025
+
+JAP, Janice Jacob Kayan
+
+Direktur Utama
+
+LAMPIRAN KEPUTUSAN DIREKSI PT. CITRADATA PURNAKHARISMA
+
+HARI LIBUR NASIONAL TAHUN 2025 
+
+Cuti Bersama Tahun 2025
+
+Jakarta, …………
+
+JAP, Janice Jacob Kayan
+
+Direktur Utama

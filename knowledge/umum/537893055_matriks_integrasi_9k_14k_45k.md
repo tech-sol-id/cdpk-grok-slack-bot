@@ -1,0 +1,223 @@
+--- Halaman 1 ---
+Klausul ISO 9001:2015 Klausul ISO 14001:2015 Klausul ISO 45001:2018
+Konteks Organisasi 4 KONTEKS ORGANISASI 4 KONTEKS ORGANISASI 4 KONTEKS ORGANISASI
+4.1 MEMAHAMI ORGANISASI DAN KONTEKSNYA4.1 MEMAHAMI ORGANISASI DAN 
+KONTEKSNYA
+4.2 MEMAHAMI KEBUTUHAN DAN HARAPAN PIHAK TERKAIT4.2 MEMAHAMI KEBUTUHAN DAN HARAPAN 
+PIHAK TERKAIT
+Kebijakan K3 Lingkungan  K3 
+Lingkungan  Mutu
+5.2 KEBIJAKAN 5.2 KEBIJAKAN LINGKUNGAN 5.2 KEBIJAKAN K3 Lingkungan  Mutu 
+Lingkungan  Mutu 
+JobDesc K3 Lingkungan  Mutu 5.3 TANGGUNGJAWAB DAN WEWENANG 5.3 TANGGUNGJAWAB DAN WEWENANG - 
+LINGKUNGAN
+5.3 TANGGUNGJAWAB DAN 
+WEWENANG - K3
+P2K3 7.4 KOMUNIKASI 7.4 KOMUNIKASI 5,4 PARTISIPASI & KONSULTASI 
+PEKERJA
+Identifikasi Bahaya Risiko, 
+Aspek Dampak Lingkungan   
+6.1, 6.2 TINDAKAN DITUJUKAN PADA RESIKO DAN PELUANG6.1.2 ASPEK LINGKUNGAN 6.1.2 HIRADC
+Sasaran & Program  K3 
+Lingkungan  Mutu
+6.2 SASARAN LINGKUNGAN 6.2 SASARAN K3 Lingkungan  Mutu 
+Lingkungan  Mutu 
+MANUAL SMK3 K3 Lingkungan  
+Mutu
+N/A N/A N/A
+Identifikasi & Evaluasi 
+Kepatuhan Terhadapa 
+Peraturan Perundangan
+5.1.2, 8..2 FOKUS PADA PELANGGAN, PERSYARATAN PRODUK DAN JASA6.1.3 & 9.1.2IDENTIFIKASI PERATURAN 
+PERUNDANGAN & EVALUASI KEPATUHAN
+6.1.3 & 9.1.2 IDENTIFIKASI PERATURAN 
+PERUNDANGAN & EVALUASI 
+KEPATUHAN
+Penyebarluasan Informasi K3 
+Lingkungan  Mutu Kepada 
+Karyawan
+7.4 KOMUNIKASI 7.4 KOMUNIKASI 7.4 KOMUNIKASI
+Pengendalian dalam 
+Pembuatan Dokumen Baru 
+7.5 INFORMASI TERDOKUMENTASI 7.5 INFORMASI TERDOKUMENTASI 7.5 INFORMASI TERDOKUMENTASI
+Pengendalian dalam 
+Pembuatan Dokumen Revisi
+7.5 INFORMASI TERDOKUMENTASI 7.5 INFORMASI TERDOKUMENTASI 7.5 INFORMASI TERDOKUMENTASI
+Seleksi AspekK3 Lingkungan  
+Mutu dalam Pengadaan Barang 
+/ Jasa
+8.4 PENGENDALIAN PRODUK, PROSES DAN JASA YANG DISEDIAKAN EKSTERNAL8,1 PENGENDALIAN OPERASIONAL 8.1.4 PENGADAAN
+Pemeriksaan Barang / Jasa 
+hasil Pengadaan 
+8.4 PENGENDALIAN PRODUK, PROSES DAN JASA YANG DISEDIAKAN EKSTERNAL8,1 PENGENDALIAN OPERASIONAL 8.1.4 PENGADAAN
+Evaluasi Aspek K3 Lingkungan  
+Mutuu dalam Pengadaan 
+Barang / Jasa
+8.4 PENGENDALIAN PRODUK, PROSES DAN JASA YANG DISEDIAKAN EKSTERNAL8,1 PENGENDALIAN OPERASIONAL 8.1.4 PENGADAAN
+8.5.2 IDENTIFIKASI DAN MAMPU TELUSUR 8,1 PENGENDALIAN OPERASIONAL 8.1.4 PENGADAAN
+SOP/IK (Memuat pengendalian 
+K3 Lingkungan  Mutu 
+Lingkungan  Mutu dalam 
+8.1 PERENCANAAN DAN PENGENDALIAN OPERASI8.1 PERENCANAAN DAN PENGENDALIAN 
+OPERASI
+8.1 PERENCANAAN DAN 
+PENGENDALIAN OPERASI
+Inspeksi K3 Lingkungan  Mutu 
+Lingkungan  Mutu oleh 
+Supervisor & Kewajiban Spv 
+untuk melakukan Identifikasi 
+9.1 PEMANTAUAN, PENGUKURAN, ANALISIS DAN EVALUASI9.1 PEMANTAUAN, PENGUKURAN, ANALISIS 
+DAN EVALUASI
+9.1 PEMANTAUAN, PENGUKURAN, 
+ANALISIS DAN EVALUASI
+Standar Kompetensi K3 
+Lingkungan  Mutu Lingkungan  
+Mutu & Persyaratan Kesehatan 
+digunakan sebagai sebagai 
+dasar rekruitmen / promosi / 
+7.2 KOMPETENSI 7.2 KOMPETENSI 7.2 KOMPETENSI
+Standar Kompetensi K3 
+Lingkungan  Mutu Lingkungan  
+Mutu & Persyaratan Kesehatan 
+digunakan sebagai sebagai 
+dasar rekruitmen / promosi / 
+7.1.4 LINGKUNGAN UNTUK OPERASI PROSES7.1.4 LINGKUNGAN UNTUK OPERASI PROSES 8.1 PERENCANAAN DAN 
+PENGENDALIAN OPERASI
+Pengendalian dalam Perawatan 
+& Perbaikan Mesin & 
+Infrastruktur, LOTO, Penandaan 
+pada Mesin yang Rusak, Riksa 
+Uji/Sertifikasi pada Mesin 
+sesuai Regulasi K3 Lingkungan  
+Mutu Lingkungan  Mutu & 
+Ketentuan Safe To Operate 
+selesai Perawatan Perbaikan 
+Mesin 
+7.1.3 INFRASTRUKTUR 7.1.3 INFRASTRUKTUR 8.1 PERENCANAAN DAN 
+PENGENDALIAN OPERASI
+Pengendalian K3 Lingkungan  
+Mutu Lingkungan  Mutu dalam 
+Pengadaan Pekerjaan 
+Kontraktor
+8.1 PERENCANAAN DAN PENGENDALIAN OPERASI8.1 PERENCANAAN DAN PENGENDALIAN 
+OPERASI
+8.1.4.2 KONTRAKTOR
+Pengendalian Keadaan Darurat, 
+Pembentukan Tim ERT, 
+Petugas ERT mendapatkan 
+Pelatihan, Pelaksanaan & 
+Evaluasi Drill
+8.2 KESIAPSIAGAAN & TANGGAP DARURAT 8.2 KESIAPSIAGAAN & TANGGAP 
+DARURAT 
+N/A N/A
+SUBJECT
+MATRIKS KOMPARASI
+
+--- Halaman 2 ---
+MATRIKS KOMPARASI
+Pengendalian Kotak P3K & 
+Ketentuan Petugas P3K 
+Mendapatkan Pelatihan
+8.2 KESIAPSIAGAAN & TANGGAP DARURAT 8.2 KESIAPSIAGAAN & TANGGAP 
+DARURAT 
+Pengendalian setelah paska 
+keadaan Darurat
+8.2 KESIAPSIAGAAN & TANGGAP DARURAT 8.2 KESIAPSIAGAAN & TANGGAP 
+DARURAT 
+Inspeksi K3 Lingkungan  Mutu 
+Lingkungan  Mutu oleh Tim 
+P2K3
+N/A N/A N/A
+Pemantauan Lingkungan Kerja 
+(Faktor Fisika Kimia Biologi & 
+Ergonomi Psikologi)
+7.1.4 LINGKUNGAN UNTUK OPERASI PROSES9.1 PEMANTAUAN, PENGUKURAN, ANALISIS 
+DAN EVALUASI
+9.1 PEMANTAUAN, PENGUKURAN, 
+ANALISIS DAN EVALUASI
+Kalibrasi Alait Ukur untuk 
+pemantauan  Lingkungan Kerja 
+& Kesehatan Tenaga Kerja 
+7.1.5 SUMBERDAYA PEMANTAUAN DAN PENGUKURAN9.1 PEMANTAUAN, PENGUKURAN, ANALISIS 
+DAN EVALUASI
+9.1 PEMANTAUAN, PENGUKURAN, 
+ANALISIS DAN EVALUASI
+Pemantauan Kesehatan 
+Karyawan (MCU Awal, Berkala, 
+Khusus), Pelaporan MCU & 
+Legalitas Vendor/Lab <CU & 
+Dokter 
+9.1 PEMANTAUAN, PENGUKURAN, 
+ANALISIS DAN EVALUASI
+Pelaporan oleh Karyawan jika 
+melihat Unsafe 
+Action/Condition atau Keadaan 
+Darurat lainnya
+10.2 KETIDAKSESUAIAN DAN TINDAKAN PERBAIKAN10.2 KETIDAKSESUAIAN DAN TINDAKAN 
+PERBAIKAN
+10.2 KETIDAKSESUAIAN DAN 
+TINDAKAN KOREKTIF
+Pelaporan Kronologis jika 
+terjadi Keadaan Darurat 
+10.2 KETIDAKSESUAIAN DAN TINDAKAN PERBAIKAN10.2 KETIDAKSESUAIAN DAN TINDAKAN 
+PERBAIKAN
+10.2 INSIDEN, KETIDAKSESUAIAN 
+DAN TINDAKAN PERBAIKAN
+Investigasi Kecelakaan Kerja & 
+PAK Pencemaran oleh Personil 
+yang kompeten & Berwenang
+10.2 KETIDAKSESUAIAN DAN TINDAKAN PERBAIKAN10.2 KETIDAKSESUAIAN DAN TINDAKAN 
+PERBAIKAN
+10.2 KETIDAKSESUAIAN DAN 
+TINDAKAN KOREKTIF
+Pengendalian pelaksanaan 
+Tindakan Perbaikan jika terjadi 
+masalah K3 Lingkungan  Mutu
+10.2 KETIDAKSESUAIAN DAN TINDAKAN PERBAIKAN10.2 KETIDAKSESUAIAN DAN TINDAKAN 
+PERBAIKAN
+10.2 KETIDAKSESUAIAN DAN 
+TINDAKAN KOREKTIF
+Pengendalian Catatan / Arsip 
+K3 Lingkungan  Mutu Rahasia
+7.5 INFORMASI TERDOKUMENTASI 7.5 INFORMASI TERDOKUMENTASI 7.5 INFORMASI TERDOKUMENTASI
+Pengendalian Laporan  K3 
+Lingkungan  Mutu terutama 
+kepada Pihak Eksternal / 
+Regulator
+7.5 INFORMASI TERDOKUMENTASI 7.5 INFORMASI TERDOKUMENTASI 9.1 PEMANTAUAN, PENGUKURAN, 
+ANALISIS DAN EVALUASI
+Audit Internal  9.2 INTERNAL AUDIT 9.2 INTERNAL AUDIT 9.2 INTERNAL AUDIT
+Analisa Gap  Kompetensi K3, 
+Identifikasi Kebutuhan 
+Pelatihan sebelum 
+7.2 KOMPETENSI 7.2 KOMPETENSI 7.2 KOMPETENSI
+Pelatihan K3 Lingkungan  
+Mutubagi Manajemen & Spv 
+minimal  Identifikasi Bahaya 
+Risiko, Aspek Dampak ; 
+PengawasanK3 Lingkungan  
+Mutu & Investigasi Kecelakaan 
+Kerja / PAK /Insiden 
+Lingkungan
+7.2 KOMPETENSI 7.2 KOMPETENSI 7.2 KOMPETENSI
+Pelatihan  K3 Lingkungan  Mutu 
+bagi Karyawan minimal Dasar 
+K3 Lingkungan  Mutu  & Dasar 
+Tanggap Darurat 
+7.2 KOMPETENSI 7.2 KOMPETENSI 7.2 KOMPETENSI
+7.3 AWARENESS 7.3 AWARENESS 7.3 AWARENESS
+Pelatihan  K3 Lingkungan  
+Mutubagi Tamu & Karyawan 
+Kontraktor  minimal Dasar K3 
+Lingkungan  Mutu & Dasar 
+Tanggap Darurat 
+7.2 KOMPETENSI 7.2 KOMPETENSI 7.2 KOMPETENSI
+PelatihanK3 Lingkungan  
+Mutukhusus bagi Karyawan 
+misal Operator, Tim ERT  
+Peralatan Berbahaya, Ahli K3 , 
+dll 
+7.2 KOMPETENSI 7.2 KOMPETENSI 7.2 KOMPETENSI
+PENINGKATAN 10 PENINGKATAN 10 PENINGKATAN 10 PENINGKATAN
+10.3 PENINGKATAN BERKELANJUTAN 10.3 PENINGKATAN BERKELANJUTAN 10.3 PENINGKATAN 
+BERKELANJUTAN

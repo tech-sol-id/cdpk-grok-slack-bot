@@ -1,0 +1,31 @@
+KEPUTUSAN DIREKSI 
+
+PT. TEKNOLOGI CHAYANI HARSA
+
+Nomor: 01.032/SUR/TCH.XII/2025
+
+Tentang
+
+HARI LIBUR NASIONAL DAN CUTI BERSAMA TAHUN 2026 
+
+DI LINGKUNGAN PT. TEKNOLOGI CHAYANI HARSA
+
+Ditetapkan di Jakarta, 
+
+pada tanggal 18 Desember 2025
+
+JAP, Janice Jacob Kayan
+
+Direktur Utama
+
+LAMPIRAN KEPUTUSAN DIREKSI PT. TEKNOLOGI CHAYANI HARSA
+
+HARI LIBUR NASIONAL TAHUN 2026 
+
+Cuti Bersama Tahun 2026
+
+Jakarta, 18 Desember 2025
+
+JAP, Janice Jacob Kayan
+
+Direktur Utama

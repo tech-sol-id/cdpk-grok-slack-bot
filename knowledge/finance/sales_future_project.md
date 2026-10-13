@@ -1,0 +1,15 @@
+,nama proyek,barang/license,part number dan deskripsi. cukup isi salah satu kolom,,jumlah unit yg dibutuhkan,tgl/bulan/quartal estimasi kebutuhan barang,nama PIC proyek (end user/partner),nama sales yang handle
+No,Project Name,Category,Item Part Number,Item Description,Qty,Estimate date,PIC,Sales
+1,,,,,,,,
+2,,,,,,,,
+3,,,,,,,,
+4,,,,,,,,
+5,,,,,,,,
+6,,,,,,,,
+7,,,,,,,,
+8,,,,,,,,
+9,,,,,,,,
+10,,,,,,,,
+11,,,,,,,,
+12,,,,,,,,
+13,,,,,,,,

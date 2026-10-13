@@ -1,0 +1,14 @@
+REKOMENDASI TRAMIGO,,,,,,,,,,,,,,,,,,,
+Part Number,Description,Modal,Harga Partner,Harga MSRP,GPM Reseller,GPM MSRP,Harga 1000 unit,Harga 5000 unit,GPM 1000 unit,GPM 5000 unit,,Harga Modal ($),Jumlah load,Total load (Rp),Total load ($),Potensi sales to partner 50%,Potensi sales to partner 100%,Minimum sales quantity,
+170007IDN,Tramigo MCPTT-XC (Mission Critical Push-to-Talk XC),"Rp1,350,000","Rp2,000,000","Rp2,400,000",32.50%,43.75%,"Rp1,900,000","Rp1,800,000",28.95%,25.00%,,$84.38,"20,000","Rp27,000,000,000","$1,687,500.00","Rp20,000,000,000","Rp40,000,000,000","14,850","Rp29,700,000,000"
+170008IDN,Tramigo MCPTT-1 (Mission Critical Push-to-Talk 1),"Rp1,800,000","Rp2,700,000","Rp3,250,000",33.33%,44.62%,"Rp2,600,000","Rp2,500,000",30.77%,28.00%,,$112.50,"8,000","Rp14,400,000,000","$900,000.00","Rp10,800,000,000","Rp21,600,000,000","5,867","Rp15,840,000,000"
+171003IDN,Tramigo MCPTT-2 (Mission Critical Push-to-Talk 2),"Rp2,570,000","Rp3,400,000","Rp4,000,000",24.41%,35.75%,"Rp3,300,000","Rp3,200,000",22.12%,19.69%,,$160.63,"8,000","Rp20,560,000,000","$1,285,000.00","Rp13,600,000,000","Rp27,200,000,000","6,652","Rp22,616,000,000"
+171003IDNC,Tramigo MCPTT-2 (Mission Critical Push-to-Talk 2) with Camera,"Rp2,950,000","Rp4,200,000","Rp5,000,000",29.76%,41.00%,"Rp4,100,000","Rp4,000,000",28.05%,26.25%,,,,"Rp61,960,000,000","$3,872,500.00","Rp44,400,000,000","Rp88,800,000,000",,"Rp68,156,000,000"
+172002IDN,Tramigo MCPTT-3 (Mission Critical Push-to-Talk 3),"Rp3,000,000","Rp4,000,000","Rp4,650,000",25.00%,35.48%,"Rp3,900,000","Rp3,800,000",23.08%,21.05%,,,Load + Operasional,"Rp68,156,000,000",,Nett Profit,"Rp20,644,000,000",,
+,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,
+170007IDN,Tramigo MCPTT-XC (Mission Critical Push-to-Talk XC),"Rp1,350,000","Rp2,000,000","Rp2,400,000",32.50%,43.75%,"Rp1,900,000","Rp1,800,000",,,,$84.38,"10,000","Rp13,500,000,000","$843,750.00","Rp10,000,000,000","Rp20,000,000,000","7,425","Rp14,850,000,000"
+170008IDN,Tramigo MCPTT-1 (Mission Critical Push-to-Talk 1),"Rp1,800,000","Rp2,700,000","Rp3,250,000",33.33%,44.62%,"Rp2,600,000","Rp2,500,000",,,,$112.50,"4,000","Rp7,200,000,000","$450,000.00","Rp5,400,000,000","Rp10,800,000,000","2,933","Rp7,920,000,000"
+171003IDN,Tramigo MCPTT-2 (Mission Critical Push-to-Talk 2),"Rp2,570,000","Rp3,400,000","Rp4,000,000",24.41%,35.75%,"Rp3,300,000","Rp3,200,000",,,,$160.63,"4,000","Rp10,280,000,000","$642,500.00","Rp6,800,000,000","Rp13,600,000,000","3,326","Rp11,308,000,000"
+171003IDNC,Tramigo MCPTT-2 (Mission Critical Push-to-Talk 2) with Camera,"Rp2,950,000","Rp4,200,000","Rp5,000,000",29.76%,41.00%,"Rp4,100,000","Rp4,000,000",,,,,,"Rp30,980,000,000","$1,936,250.00","Rp22,200,000,000","Rp44,400,000,000",,"Rp34,078,000,000"
+172002IDN,Tramigo MCPTT-3 (Mission Critical Push-to-Talk 3),"Rp3,000,000","Rp4,000,000","Rp4,650,000",25.00%,35.48%,"Rp3,900,000","Rp3,800,000",,,,,Load + Operasional,"Rp34,078,000,000",,Nett Profit,"Rp10,322,000,000",,

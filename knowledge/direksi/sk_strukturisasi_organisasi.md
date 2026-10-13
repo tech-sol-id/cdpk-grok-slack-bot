@@ -1,0 +1,27 @@
+KEPUTUSAN DIREKSI 
+
+PT. TEKNOLOGI CHAYANI HARSA
+
+Nomor: 
+
+Tentang
+
+STRUKTUR ORGANISASI PT. TEKNOLOGI CHAYANI HARSA
+
+Ditetapkan di Jakarta, 
+
+pada tanggal 23 Desember 2025
+
+JAP, Janice Jacob Kayan
+
+Direktur Utama
+
+LAMPIRAN I KEPUTUSAN DIREKSI PT. TEKNOLOGI CHAYANI HARSA
+
+LAMPIRAN I KEPUTUSAN DIREKSI PT. TEKNOLOGI CHAYANI HARSA
+
+Jakarta, 23 Desember 2025
+
+JAP, Janice Jacob Kayan
+
+Direktur Utama

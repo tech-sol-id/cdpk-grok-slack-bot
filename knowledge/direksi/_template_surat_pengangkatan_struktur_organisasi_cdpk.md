@@ -1,0 +1,31 @@
+KEPUTUSAN DIREKSI 
+
+PT. CITRADATA PURNAKHARISMA
+
+Nomor:  
+
+Tentang
+
+STRUKTUR ORGANISASI PT. CITRADATA PURNAKHARISMA
+
+Ditetapkan di Jakarta, 
+
+pada tanggal …………
+
+JAP, Janice Jacob Kayan
+
+Direktur Utama 
+
+LAMPIRAN KEPUTUSAN DIREKSI PT. CITRADATA PURNAKHARISMA
+
+NOMOR	: 
+
+TANGGAL	: 
+
+TENTANG	: STRUKTUR ORGANISASI PT. CITRADATA PURNAKHARISMA
+
+Jakarta, …………
+
+JAP, Janice Jacob Kayan
+
+Direktur Utama

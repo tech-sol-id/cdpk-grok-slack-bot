@@ -1,0 +1,7 @@
+No,Lokasi,Link,Furnished,ETA to Arsika,Luas Bangunan,Harga Sewa Tahunan,PIC
+1,"Bontojai, Jl. Kapasa Raya, Kapasa, Kec. Tamalanrea, Kota Makassar, Sulawesi Selatan 90243",https://www.pinhome.id/disewa/rumah-sekunder/unit/disewakan-rumah-di-jl-kw-pergudangan-dan-industri-parangloe,Y,22 min,78 m2,"Rp32,000,000",Adi (+62 812-5555-6771)
+2,Utopia Tallasa City,https://www.travelio.com/property/makassar-ujung-pandang/comfortable-2br-house-at-cluster-utopia-tallasa-city-by-travelio-realty_639511DAA?searchType=monthly&checkIn=14-04-2025&checkOut=14-05-2025&guest=1&nights=30&handpicked=&roomName=2BR%20House&roomBreakfast=0,Y,25 min,51 m2,"Rp46,297,222",Travelio
+3,Cluster Pelangi Tallasa,https://www.99.co/id/properti/rumah-siap-huni-cluster-pelangi-tallasa-1008954278?utm_source=whatsapp&utm_medium=social&utm_campaign=ldp,Y,18 min,40 m2,"Rp35,000,000",Monica (+62 838-2200-9121)
+4,Green River View,https://www.travelio.com/property/makassar-ujung-pandang/cozy-living-2br-house-at-green-river-view-by-travelio-realty_8CE892BA4?searchType=yearly&checkIn=14-04-2025&checkOut=14-04-2026&guest=1&nights=365&handpicked=&roomName=2%20Bedrooms&roomBreakfast=0,Y,18 min,45 m2,"Rp27,350,000",
+5,Amaryllis Residence,https://www.99.co/id/properti/furnished-house-at-the-amaryllis-residence-by-travelio-1008188836,Y,18 min,72 m2,"Rp32,000,000",
+6,Cluster Castanea Tanjung Bunga,https://www.99.co/id/properti/rumah-sewa-dengan-perabot-di-cluster-castanea-tanjung-bunga-1008713902,Y,22 min,45 m2,"Rp40,000,000",
