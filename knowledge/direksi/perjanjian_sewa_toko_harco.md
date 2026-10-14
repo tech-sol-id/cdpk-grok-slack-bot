@@ -56,8 +56,6 @@ Bank                : BCA
 Nama Rekening        : Christine NA
 Nomor Rekening        : 0828899999
 5. Bukti transfer pembayaran merupakan bukti pembayaran yang sah dan menjadi bagian yang tidak terpisahkan dari Perjanjian ini.
-
-
 PASAL 4
 TUJUAN SEWA
    1. PIHAK KEDUA akan menggunakan objek sewa untuk kegiatan usaha yang sah dan tidak bertentangan dengan peraturan perundang-undangan yang berlaku.
@@ -86,8 +84,6 @@ PERUBAHAN DAN RENOVASI
    2. Biaya atas renovasi atau perubahan yang dilakukan atas permintaan PIHAK KEDUA menjadi tanggung jawab PIHAK KEDUA, kecuali disepakati lain secara tertulis.
 PASAL 8
 PENGALIHAN SEWA
-
-
    1. PIHAK KEDUA tidak diperkenankan mengalihkan hak sewa atau menyewakan kembali sebagian atau seluruh objek sewa kepada pihak lain tanpa persetujuan tertulis dari PIHAK PERTAMA.
    2. Setiap pengalihan atau penyewaan kembali tanpa persetujuan PIHAK PERTAMA dapat dianggap sebagai pelanggaran terhadap Perjanjian ini.
 PASAL 9

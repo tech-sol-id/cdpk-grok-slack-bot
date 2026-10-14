@@ -8,7 +8,8 @@ No.,Shipped from,Forwarder,#BL,Tgl Pick Up,Tgl PIB,Tgl Tiba di Gudang,Detail Per
 7,PLH 2 (Bonded WH),PGS,KULS006598,23/04/2026,08/05/2026,11/05/2026,HPP Motorola BL KULS006598 (Mei26 - Laut),1.70%,30.18%,"17,294","18,000",0.38%,0.40%,0.92%
 8,PLH 2 (Bonded WH),Morrison,PENS2600428,19/05/2026,04/06/2026,05/06/2026,HPP Motorola BL PENS2600428 (Juni26 - Laut),1.26%,-25.73%,"17,805","18,000",0.35%,0.68%,0.23%
 9,PLH 2 (Bonded WH),Morrison,PENS2600599,03/07/2026,27/07/2026,29/07/2026,HPP Motorola BL PENS2600599 (Juli26 - Laut),1.14%,-9.30%,"18,267","18,100",0.31%,0.74%,0.10%
-,,,,,,,%AVERAGE LANDING COST,1.30%,,,,,,
+10,PLH 2 (Bonded WH),Morrison,PENS2600894,01/10/2026,19/10/2026,,HPP Motorola BL PENS2600894 (Okt26 - Laut),1.19%,4.36%,"17,897","18,000",0.26%,0.57%,0.37%
+,,,,,,,%AVERAGE LANDING COST,1.29%,,,,,,
 ,,,,,,,,,,,,,,
 ,Elemen landing cost:,dipengaruhi oleh:,,,,,,,,,,,,
 ,Storage (DHL-PEN),"kurs MYR-USD-IDR, jumlah karton & kelompok pallet, serta durasi. Setelah pindah ke PLH 2 (Bonded WH) terdapat extra cost, yaitu: handling + customs + trucking",,,,,,,,8.87%,kenaikan kurs USD/IDR dalam setahun terakhir,,,
