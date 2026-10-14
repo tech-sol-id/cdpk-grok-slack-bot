@@ -38,7 +38,8 @@ GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
 GITHUB_REPO = os.environ.get("GITHUB_REPO", "tech-sol-id/cdpk-grok-slack-bot")
 SYSTEM_PROMPT = os.environ.get(
     "SYSTEM_PROMPT",
-    "Anda adalah asisten AI resmi CDPK HQ yang didukung oleh Grok. Anda HANYA mencari, mengacu, dan menjawab pertanyaan berdasarkan dokumen-dokumen resmi berformat Markdown (.md) CDPK HQ."
+    "Anda adalah Grok CDPK, Executive AI Strategic Advisor & Solutions Architect resmi CDPK HQ (PT Citradata Purnakharisma & Techsolutions). "
+    "Anda mendampingi Direksi, Manajemen, dan Tim Profesional dalam perancangan solusi teknis nirkabel, arsitektur sistem, strategi tender bisnis, pembuatan dokumen resmi, dan pengingat operasional dengan komunikasi yang lugas, elegan, dan profesional."
 )
 
 if not all([SLACK_BOT_TOKEN, SLACK_APP_TOKEN, XAI_API_KEY]):
@@ -159,7 +160,83 @@ def extract_slack_media(client, event: dict) -> list:
         except Exception as e:
             logger.warning(f"Gagal mengunduh file lampiran {fname} dari Slack: {e}")
 
-    return media_items
+def format_slack_text(text: str) -> str:
+    """Mengonversi teks jawaban Grok menjadi format tampilan Slack Executive yang bersih dan rapi (tanpa tabel pipa dan tanpa istilah teknis file markdown)."""
+    if not text:
+        return ""
+
+    # 1. Bersihkan penyebutan istilah teknis file markdown
+    text = re.sub(r"basis data dokumen Markdown \(\.md\) resmi CDPK HQ", "basis pengetahuan resmi CDPK HQ", text, flags=re.IGNORECASE)
+    text = re.sub(r"dokumen Markdown \(\.md\) resmi CDPK HQ", "basis pengetahuan resmi CDPK HQ", text, flags=re.IGNORECASE)
+    text = re.sub(r"berkas Markdown \(\.md\)", "dokumen resmi", text, flags=re.IGNORECASE)
+    text = re.sub(r"dokumen Markdown \(\.md\)", "dokumen resmi", text, flags=re.IGNORECASE)
+    text = re.sub(r"\bberkas-berkas resmi berformat Markdown \(\.md\)", "arsip dokumen resmi", text, flags=re.IGNORECASE)
+    text = re.sub(r"\b([a-zA-Z0-9_\-]+)\.md\b", r"*\1*", text)
+    text = re.sub(r"\bSumber dokumen resmi:\s*", "📚 *Rujukan Resmi:* ", text, flags=re.IGNORECASE)
+
+    # 2. Konversi tabel markdown pipa (| col1 | col2 |) menjadi bullet cards yang rapi di Slack
+    lines = text.split("\n")
+    out = []
+    i = 0
+    while i < len(lines):
+        line = lines[i].strip()
+        if line.startswith("|") and line.endswith("|") and i + 1 < len(lines):
+            next_line = lines[i+1].strip()
+            if next_line.startswith("|") and ("---" in next_line or "-:-" in next_line):
+                headers = [h.strip() for h in line.strip("|").split("|")]
+                i += 2
+                table_rows = []
+                while i < len(lines) and lines[i].strip().startswith("|") and lines[i].strip().endswith("|"):
+                    row_vals = [v.strip() for v in lines[i].strip("|").split("|")]
+                    table_rows.append(row_vals)
+                    i += 1
+
+                card_lines = []
+                for idx, row in enumerate(table_rows, 1):
+                    title_parts = []
+                    detail_parts = []
+                    for h, val in zip(headers, row):
+                        if not val or val == "-":
+                            continue
+                        h_lower = h.lower()
+                        if any(k in h_lower for k in ["no", "nomor"]):
+                            continue
+                        elif any(k in h_lower for k in ["komponen", "nama", "produk", "perangkat", "item", "description"]):
+                            title_parts.append(val)
+                        elif any(k in h_lower for k in ["model", "part number", "tipe", "type"]):
+                            title_parts.append(f"`{val}`")
+                        elif any(k in h_lower for k in ["qty", "kuantitas", "jumlah"]):
+                            detail_parts.append(f"*Qty:* {val}")
+                        elif any(k in h_lower for k in ["harga", "price"]):
+                            detail_parts.append(f"*Harga:* {val}")
+                        elif any(k in h_lower for k in ["keterangan", "fungsi", "lokasi", "notes"]):
+                            detail_parts.append(f"_{val}_")
+                        else:
+                            detail_parts.append(f"*{h}:* {val}")
+
+                    header_str = " — ".join(title_parts) if title_parts else f"Item {idx}"
+                    card_lines.append(f"• *{idx}. {header_str}*")
+                    if detail_parts:
+                        card_lines.append(f"   └─ " + " | ".join(detail_parts))
+
+                out.append("\n".join(card_lines))
+                continue
+        out.append(lines[i])
+        i += 1
+    text = "\n".join(out)
+
+    # 3. Ubah heading markdown ### atau ## menjadi bold ber-emoji untuk Slack
+    text = re.sub(r"^###\s+(.+)$", r"🔹 *\1*", text, flags=re.MULTILINE)
+    text = re.sub(r"^##\s+(.+)$", r"📌 *\1*", text, flags=re.MULTILINE)
+    text = re.sub(r"^#\s+(.+)$", r"🚀 *\1*", text, flags=re.MULTILINE)
+
+    # 4. Ubah **bold** ganda menjadi *bold* tunggal khas Slack mrkdwn
+    text = re.sub(r"\*\*([^\*]+)\*\*", r"*\1*", text)
+
+    # 5. Hilangkan backtick pada kutipan dokumen yang kaku
+    text = re.sub(r"`\*([^\*]+)\*`", r"*\1*", text)
+
+    return text
 
 def ask_grok(messages: list, client=None, channel: str = None, thread_ts: str = None, user_id: str = None) -> str:
     """Mengirim pesan ke xAI Grok API dengan dukungan Tool Calling untuk Dokumen & Reminder."""
@@ -284,9 +361,9 @@ def ask_grok(messages: list, client=None, channel: str = None, thread_ts: str = 
             content = final_resp.choices[0].message.content or ""
             if uploaded_notices:
                 content += "\n\n" + "\n".join(uploaded_notices)
-            return content
+            return format_slack_text(content)
 
-        return msg.content or ""
+        return format_slack_text(msg.content or "")
     except Exception as e:
         logger.error(f"Error memanggil xAI API: {e}")
         return f"⚠️ Terjadi kendala saat menghubungi Grok API: `{str(e)}`"
@@ -548,13 +625,29 @@ def get_effective_system_prompt(user_access: dict = None, query: str = "") -> st
         )
 
     strict_md_instruction = (
-        "🔒 ATURAN SUMBER PENGETAHUAN & DOMAIN BISNIS CDPK HQ:\n"
-        "1. SUMBER DATA PERUSAHAAN: Untuk arsip perusahaan, profil, laporan keuangan, data karyawan, dan spesifikasi produk internal, dasarkan pada berkas Markdown (.md) resmi CDPK HQ di bawah ini.\n"
+        "🔒 SUMBER DATA PERUSAHAAN & INTEGRITAS PENGETAHUAN CDPK HQ:\n"
+        "1. SUMBER DATA PERUSAHAAN: Untuk arsip perusahaan, profil, laporan keuangan, data karyawan, dan spesifikasi produk internal, dasarkan pada arsip pengetahuan resmi CDPK HQ di bawah ini.\n"
         "2. DOMAIN BISNIS RESMI: CDPK HQ bergerak di bidang SOLUSI KOMUNIKASI RADIO NIRKABEL PROFESIONAL (Motorola Solutions, FMTCS Solutions, POCStar, Tramigo), PERALATAN OUTDOOR & DIVING (Skywoods), serta PERANGKAT INTRINSICALLY SAFE ATEX/EX (i.Safe Mobile).\n"
         "3. ANTI-HALUSINASI SINGKATAN/ISTILAH: DILARANG mengartikan singkatan internal/produk (seperti FMTCS, IMS, FMTCS-LRF, POCStar, MCX, DMR, DAS, ATEX, HazLoc) ke bidang lain di luar bisnis telekomunikasi CDPK HQ. FMTCS adalah penyedia solusi sistem komunikasi nirkabel dan DAS mitra resmi CDPK HQ.\n"
-        "4. ANALISIS MULTIMODAL BLUEPRINT & GAMBAR: Jika pengguna melampirkan gambar skema, blueprint, denah, atau riser diagram kabel, Anda WAJIB menganalisis secara visual gambar tersebut, mengidentifikasi arsitektur gedung/lantai/riser, serta merekomendasikan solusi sistem DAS & radio CDPK HQ (FMTCS / Motorola). JANGAN PERNAH menolak analisis visual gambar dengan alasan tidak ada di dokumen .md!\n"
-        "5. JIKA INFORMASI ARSIP TIDAK DITEMUKAN: Hanya jika pengguna menanyakan fakta/arsip internal perusahaan yang tidak ada di berkas .md dan tidak melampirkan gambar untuk dianalisis, nyatakan: 'Informasi tersebut tidak ditemukan dalam basis data dokumen Markdown (.md) resmi CDPK HQ.'\n"
-        "6. KUTIPAN NAMA FILE: Bila merujuk dokumen resmi, sebutkan nama berkas Markdown (.md) rujukan."
+        "4. ANALISIS MULTIMODAL BLUEPRINT & GAMBAR: Jika pengguna melampirkan gambar skema, blueprint, denah, atau riser diagram kabel, Anda WAJIB menganalisis secara visual gambar tersebut, mengidentifikasi arsitektur gedung/lantai/riser, serta merekomendasikan solusi sistem DAS & radio CDPK HQ (FMTCS / Motorola).\n"
+        "5. JIKA INFORMASI ARSIP TIDAK DITEMUKAN: Hanya jika pengguna menanyakan fakta/arsip internal perusahaan yang tidak ada di data arsip dan tidak melampirkan gambar untuk dianalisis, nyatakan: 'Informasi arsip tersebut tidak ditemukan dalam basis pengetahuan resmi CDPK HQ.'\n"
+        "6. REFERENSI RESMI: Jika merujuk dokumen tertentu, sebutkan nama subjek dokumen secara wajar tanpa menyebut ekstensi teknis file."
+    )
+
+    slack_formatting_instruction = (
+        "✍️ STANDAR FORMAT PENULISAN RESMI SLACK (EXECUTIVE BRIEFING STYLE — NON-MARKDOWN DUMP):\n"
+        "1. JANGAN PERNAH MENULIS SEPERTI DOKUMEN / KODE MARKDOWN MENTAH: Hindari format yang terkesan seperti developer membaca text file mentah. Tulis dengan gaya eksekutif profesional, rapi, dan mudah dibaca di mobile/desktop Slack.\n"
+        "2. FORMAT TEKS SLACK: Gunakan format Slack mrkdwn resmi:\n"
+        "   - Bold: Gunakan tanda asteris tunggal `*teks tebal*` (JANGAN gunakan double asterisks `**teks**`).\n"
+        "   - Italic: Gunakan garis bawah `_teks miring_`.\n"
+        "   - Header Bagian: Gunakan judul ber-emoji yang elegan, contoh: `📌 *ANALISIS STRUKTUR & KEBUTUHAN BANGUNAN*`, `🔹 *REKOMENDASI ARSITEKTUR & TOPOLOGI*`, `💡 *CATATAN TEKNIS & INSTALASI*`.\n"
+        "3. DILARANG MENGGUNAKAN TABEL PIPA MARKDOWN (| col1 | col2 |): Tabel pipa markdown TIDAK DIDUKUNG dengan baik oleh Slack dan tampil berantakan/rusak di layar pengguna. Selalu sajikan data daftar perangkat, spesifikasi, atau BOM dalam format CARD LIST yang elegan dengan bullet `•`, contoh:\n"
+        "   • *1. Optical Master Unit (OMU)* — `FMTCS LRFN-DOMU400C` (Qty: 1 Unit)\n"
+        "     └─ _Lokasi: B3 Security Control Center | Fungsi: Konversi sinyal RF repeater ke optik_\n"
+        "   • *2. Optical Remote Unit (ORU)* — `FMTCS LRFF-DORU400CH` (Qty: 15–18 Unit)\n"
+        "     └─ _Lokasi: Riser tiap lantai / zona | Fungsi: Distribusi RF lokal via Coaxial_\n"
+        "4. DILARANG KERAS MENYEBUT ISTILAH EKSTENSI TEKNIS: DILARANG menyebut '.md', 'file markdown', 'berkas .md', atau 'database markdown' kepada pengguna. Gunakan istilah korporat resmi: 'Basis pengetahuan resmi CDPK HQ', 'Katalog teknis resmi FMTCS', 'Pedoman teknis Motorola Solutions', dll.\n"
+        "5. NADA KOMUNIKASI: Cerdas, berwibawa, solutif, langsung menjawab inti persoalan, dan terstruktur rapi."
     )
 
     solution_architect_instruction = (
@@ -591,22 +684,23 @@ def get_effective_system_prompt(user_access: dict = None, query: str = "") -> st
         SYSTEM_PROMPT,
         rbac_instruction,
         strict_md_instruction,
+        slack_formatting_instruction,
         solution_architect_instruction
     ]
 
     if kb:
         prompt_parts.append(
-            f"=== BASIS PENGETAHUAN RESMI CDPK HQ (BERKAS MARKDOWN .MD) ===\n"
-            f"Berikut adalah kutipan dokumen Markdown (.md) resmi CDPK HQ yang relevan dengan pertanyaan:\n\n"
+            f"=== BASIS PENGETAHUAN RESMI CDPK HQ ===\n"
+            f"Berikut adalah kutipan informasi resmi CDPK HQ yang relevan dengan pertanyaan:\n\n"
             f"{kb}\n"
-            f"=== AKHIR BASIS PENGETAHUAN MARKDOWN (.MD) ==="
+            f"=== AKHIR BASIS PENGETAHUAN ==="
         )
     else:
         prompt_parts.append(
-            "=== BASIS PENGETAHUAN RESMI CDPK HQ (BERKAS MARKDOWN .MD) ===\n"
-            "Catatan: Tidak ditemukan berkas Markdown (.md) spesifik untuk kata kunci pencarian teks ini.\n"
+            "=== BASIS PENGETAHUAN RESMI CDPK HQ ===\n"
+            "Catatan: Tidak ditemukan dokumen arsip spesifik untuk kata kunci pencarian teks ini.\n"
             "Jika pengguna melampirkan gambar/blueprint skema atau meminta perancangan solusi/BOM/dokumen, gunakan kapabilitas multimodal vision dan keahlian rekayasa sistem Solutions Architect Anda untuk menganalisis gambar dan merancang solusi secara komprehensif.\n"
-            "=== AKHIR BASIS PENGETAHUAN MARKDOWN (.MD) ==="
+            "=== AKHIR BASIS PENGETAHUAN ==="
         )
 
     return "\n\n".join(prompt_parts)
