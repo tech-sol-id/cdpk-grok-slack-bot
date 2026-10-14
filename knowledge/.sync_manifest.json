@@ -2740,9 +2740,9 @@
     "subfolder": "finance",
     "filename": "data_for_meeting_13_10_2026.md",
     "target_path": "knowledge/finance/data_for_meeting_13_10_2026.md",
-    "modified_time": "2026-10-14T02:59:25.279Z",
+    "modified_time": "2026-10-14T16:14:57.873Z",
     "drive_file_id": "1dAYf-fjSGHcKv-rZyHmJuYZtJDjvcNdX",
-    "synced_at": "2026-10-14T10:18:43.280915"
+    "synced_at": "2026-10-14T22:05:10.545715"
   },
   "1FuHc2b6xYzZ4Z7cQa98TT343gYBwWV8YnMxKHGr7iUc": {
     "name": "Dashboard Stock",
@@ -2965,9 +2965,9 @@
     "subfolder": "umum",
     "filename": "technical_report.md",
     "target_path": "knowledge/umum/technical_report.md",
-    "modified_time": "2026-10-14T09:42:31.728Z",
+    "modified_time": "2026-10-14T10:21:41.660Z",
     "drive_file_id": "14AbMRsP0jewO557bhd9AjobqeQLsVzXE",
-    "synced_at": "2026-10-14T10:18:52.026762"
+    "synced_at": "2026-10-14T22:05:18.544864"
   },
   "1nGCFvRhqaUzfq3toNl17TBsM4amZZ97CdopO93oogIw": {
     "name": "Pemetaan Barang",
@@ -7996,9 +7996,9 @@
     "subfolder": "umum",
     "filename": "surat_pernyataan_pembayaran.md",
     "target_path": "knowledge/umum/surat_pernyataan_pembayaran.md",
-    "modified_time": "2026-10-13T07:48:56.876Z",
+    "modified_time": "2026-10-14T10:35:56.512Z",
     "drive_file_id": "19AbgWIO6AFe4ifF5dOhrP2InIxxmsLkr",
-    "synced_at": "2026-10-13T12:46:00.384370"
+    "synced_at": "2026-10-14T22:05:03.583884"
   },
   "10-ylyNHRGC8L_hixHy5SMGLxkR9lxd_69Fxir-VNZKo": {
     "name": "VERTICAL STRATEGIES",
@@ -9425,8 +9425,41 @@
     "subfolder": "umum",
     "filename": "boq_pertamina_masela_abadi_lng.md",
     "target_path": "knowledge/umum/boq_pertamina_masela_abadi_lng.md",
-    "modified_time": "2026-10-14T07:04:27.909Z",
+    "modified_time": "2026-10-14T10:51:49.688Z",
     "drive_file_id": "1wy5y2HfYIcMj_EMKz7Cpj-qRgbfOndob",
-    "synced_at": "2026-10-14T10:21:45.181578"
+    "synced_at": "2026-10-14T22:07:52.459890"
+  },
+  "14VjMJvWVdqkEvRoKly7_9Wxe9w9c7JkW": {
+    "name": "Brosur IS540.1.pdf",
+    "subfolder": "umum",
+    "filename": "brosur_is540_1.md",
+    "target_path": "knowledge/umum/brosur_is540_1.md",
+    "modified_time": "2026-06-04T13:45:55.000Z",
+    "synced_at": "2026-10-14T22:00:25.059000"
+  },
+  "1yuBefEt4fLjx2bjX8LtRi4Xn9lkcZ9cg": {
+    "name": "Brosur IS940.2.pdf",
+    "subfolder": "umum",
+    "filename": "brosur_is940_2.md",
+    "target_path": "knowledge/umum/brosur_is940_2.md",
+    "modified_time": "2026-06-04T13:43:18.000Z",
+    "synced_at": "2026-10-14T22:00:56.043239"
+  },
+  "1Kw1AszVT87HojNCBtqKj9vLzARhmvhZ-": {
+    "name": "Brosur IS940.1.pdf",
+    "subfolder": "umum",
+    "filename": "brosur_is940_1.md",
+    "target_path": "knowledge/umum/brosur_is940_1.md",
+    "modified_time": "2026-06-04T13:43:00.000Z",
+    "synced_at": "2026-10-14T22:01:27.133254"
+  },
+  "1wFH6kk427doYC1bp6TH8-NRC3inVOQcD": {
+    "name": "FMTCS System Introduction.pptx",
+    "subfolder": "umum",
+    "filename": "fmtcs_system_introduction.md",
+    "target_path": "knowledge/umum/fmtcs_system_introduction.md",
+    "modified_time": "2026-10-14T10:43:44.923Z",
+    "drive_file_id": "1-egaqhi_IUL6BndrD4by0nRN8IugQIwn",
+    "synced_at": "2026-10-14T22:07:48.424273"
   }
 }

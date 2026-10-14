@@ -3942,7 +3942,7 @@ S.0180-2026,PT. Istana Metro Komunikasi,XIR P8668I 136-174M 5W FKP (TIA),871TABE
 S.0180-2026,PT. Istana Metro Komunikasi,XIR P8668I 136-174M 5W FKP (TIA),871TABE137,Workshop,Setting,,"Setting wallpaper LCD, custom logo",01/10/2026,202610,Sudah dikembalikan ke cusotmer,Regular,,,01/10/2026,02/10/2026,Pak Irwan,,,Bu Santi,,,
 S.0180-2026,PT. Istana Metro Komunikasi,XIR P8668I 136-174M 5W FKP (TIA),871TABE019,Workshop,Setting,,"Setting wallpaper LCD, custom logo",01/10/2026,202610,Sudah dikembalikan ke cusotmer,Regular,,,01/10/2026,02/10/2026,Pak Welly,,,Bu Santi,,,
 ,PT. Istana Metro Komunikasi,DUPLEXER RFS VHF 150-160MHZ SPACING 5MHZ,80011959-014,Workshop,Tunning,,Tunning ,02/10/2026,202610,Sudah dikembalikan ke cusotmer,VVIP Order,,,02/10/2026,02/10/2026,Pak Siswanto,,,Bu Santi,,,"Segera, urgent"
-S.0181-2026,PT. BARIA BULK TERMINAL,XIR P6620I 136-174 5W LKP(TIA),867TTT9222,Workshop,Service,,Cek all,02/10/2026,202610,,Regular,,,,,Pak Siswanto,,,Bu Santi,,,
+S.0181-2026,PT. BARIA BULK TERMINAL,XIR P6620I 136-174 5W LKP(TIA),867TTT9222,Workshop,Service,,Cek all,02/10/2026,202610,Tunggu PO / persetujuan untuk lanjut dikerjakan,Regular,,,,,Pak Siswanto,,,Bu Santi,,,
 ,Bumitangerang Mesindotama,XIR P6620I 350-400M 4W LKP,867TBM3369,Workshop,Setting,,Setting frekuensi,02/10/2026,202610,Sudah dikembalikan ke Gudang,Regular,,,,,Pak Siswanto,,,Bu Santi,,,
 ,Bumitangerang Mesindotama,XIR P6620I 350-400M 4W LKP,867TBM3460,Workshop,Setting,,Setting frekuensi,02/10/2026,202610,Sudah dikembalikan ke Gudang,Regular,,,,,Pak Siswanto,,,Bu Santi,,,
 ,Bumitangerang Mesindotama,XIR P6620I 350-400M 4W LKP,867TBD4471,Workshop,Setting,,Setting frekuensi,02/10/2026,202610,Sudah dikembalikan ke Gudang,Regular,,,,,Pak Siswanto,,,Bu Santi,,,

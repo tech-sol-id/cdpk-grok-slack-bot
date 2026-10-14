@@ -10,9 +10,7 @@ Perihal: Pernyataan tentang pembayaran
 
 Dengan hormat,
 
-Sehubungan dengan adanya perubahan dan penyesuaian data PT Citradata Purnakharisma sebagai vendor pada sistem PT Sinarmas Land, bersama surat ini kami mengajukan permohonan untuk melakukan pembaruan data vendor, khususnya data PIC dan informasi kontak yang digunakan dalam komunikasi dan korespondensi antara kedua belah pihak.
-
-Penyesuaian data ini diperlukan untuk mendukung kelancaran komunikasi dan penyampaian informasi melalui email, mengingat saat ini terdapat kendala pada penerimaan dan penyampaian beberapa korespondensi email dari PT Citradata Purnakharisma.
+Kami dari PT Phinisindo Zamrud Nusantara, sebuah perusahaan di bawah naungan Sinarmasland Group menyatakan bahwa pembayaran untuk PO 4600000023 akan dilakukan maksimal 6 November 2026.
 
 Demikian surat permohonan ini kami sampaikan. Atas perhatian dan kerja sama yang baik, kami ucapkan terima kasih.
 
