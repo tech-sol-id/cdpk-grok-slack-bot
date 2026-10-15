@@ -1,6 +1,7 @@
 import os
 import re
 import json
+import time
 import math
 import base64
 import requests
@@ -876,6 +877,15 @@ def handle_mention(event, say, client):
     except Exception:
         pass
 
+    # Kirim pemberitahuan instan di thread agar pengguna langsung melihat thread aktif (< 1 detik)
+    initial_notice_ts = None
+    try:
+        ack_text = "🔍 *Grok CDPK sedang mempelajari dan menganalisis spesifikasi data teknis... Mohon tunggu sejenak.*" if media_items else "⏳ *Grok CDPK sedang memproses permintaan Anda...*"
+        ack_res = client.chat_postMessage(channel=channel, thread_ts=thread_ts, text=ack_text)
+        initial_notice_ts = ack_res.get("ts")
+    except Exception as e:
+        logger.warning(f"Gagal mengirim pesan ack awal: {e}")
+
     auth_info = client.auth_test()
     bot_user_id = auth_info["user_id"]
     user_id = event.get("user")
@@ -901,7 +911,14 @@ def handle_mention(event, say, client):
                 "🔒 *Akses Dibatasi*\n"
                 "Perintah pembaruan/sinkronisasi basis pengetahuan Google Drive hanya dapat dijalankan oleh jajaran *Direksi* CDPK HQ."
             )
-        say(text=reply, thread_ts=thread_ts)
+        if initial_notice_ts:
+            try:
+                client.chat_update(channel=channel, ts=initial_notice_ts, text=reply)
+            except Exception:
+                say(text=reply, thread_ts=thread_ts)
+        else:
+            say(text=reply, thread_ts=thread_ts)
+
         try:
             client.reactions_remove(channel=channel, timestamp=event["ts"], name="thinking_face")
         except Exception:
@@ -934,8 +951,14 @@ def handle_mention(event, say, client):
     # Dapatkan jawaban dari Grok (dengan dukungan tool calling untuk Dokumen & Reminder)
     reply = ask_grok(conversation, client=client, channel=channel, thread_ts=thread_ts, user_id=user_id)
 
-    # Kirim balasan selalu di dalam thread agar rapi
-    say(text=reply, thread_ts=thread_ts)
+    # Perbarui pesan awal di thread dengan jawaban lengkap
+    if initial_notice_ts:
+        try:
+            client.chat_update(channel=channel, ts=initial_notice_ts, text=reply)
+        except Exception:
+            say(text=reply, thread_ts=thread_ts)
+    else:
+        say(text=reply, thread_ts=thread_ts)
 
     # Hapus reaksi emoji thinking
     try:
@@ -964,6 +987,15 @@ def handle_direct_message(event, say, client):
     except Exception:
         pass
 
+    # Kirim respons cepat di DM
+    initial_dm_ts = None
+    try:
+        ack_text = "🔍 *Grok CDPK sedang mempelajari dan menganalisis spesifikasi data teknis... Mohon tunggu sejenak.*" if media_items else "⏳ *Grok CDPK sedang memproses permintaan Anda...*"
+        ack_res = say(text=ack_text)
+        initial_dm_ts = ack_res.get("ts")
+    except Exception as e:
+        logger.warning(f"Gagal mengirim ack DM: {e}")
+
     user_id = event.get("user")
     user_access = get_user_access_level(client, user_id)
 
@@ -987,7 +1019,14 @@ def handle_direct_message(event, say, client):
                 "🔒 *Akses Dibatasi*\n"
                 "Perintah pembaruan/sinkronisasi basis pengetahuan Google Drive hanya dapat dijalankan oleh jajaran *Direksi* CDPK HQ."
             )
-        say(text=reply)
+        if initial_dm_ts:
+            try:
+                client.chat_update(channel=event["channel"], ts=initial_dm_ts, text=reply)
+            except Exception:
+                say(text=reply)
+        else:
+            say(text=reply)
+
         try:
             client.reactions_remove(channel=event["channel"], timestamp=event["ts"], name="thinking_face")
         except Exception:
@@ -1002,7 +1041,14 @@ def handle_direct_message(event, say, client):
     ]
 
     reply = ask_grok(conversation, client=client, channel=event["channel"], thread_ts=None, user_id=user_id)
-    say(text=reply)
+
+    if initial_dm_ts:
+        try:
+            client.chat_update(channel=event["channel"], ts=initial_dm_ts, text=reply)
+        except Exception:
+            say(text=reply)
+    else:
+        say(text=reply)
 
     try:
         client.reactions_remove(channel=event["channel"], timestamp=event["ts"], name="thinking_face")
@@ -1024,11 +1070,27 @@ def start_health_server(port: int = 7860):
     server = HTTPServer(("0.0.0.0", port), HealthCheckHandler)
     server.serve_forever()
 
+def keep_alive_worker():
+    """Mempertahankan server Render agar tidak tidur (spin down) dengan mengirim heartbeat request setiap 8 menit."""
+    url = os.environ.get("RENDER_EXTERNAL_URL", "https://cdpk-grok-slack-bot.onrender.com")
+    logger.info(f"Keep-alive heartbeat aktif untuk target URL: {url}")
+    while True:
+        time.sleep(480)  # Setiap 8 menit
+        try:
+            r = requests.get(url, timeout=15)
+            logger.info(f"Keep-alive heartbeat terkirim ke {url} (status: {r.status_code})")
+        except Exception as e:
+            logger.debug(f"Keep-alive ping gagal: {e}")
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 7860))
     health_thread = threading.Thread(target=start_health_server, args=(port,), daemon=True)
     health_thread.start()
     logger.info(f"Health check HTTP server berjalan di port {port}")
+
+    # Aktifkan keep-alive heartbeat thread untuk mencegah Render free tier tidur
+    keepalive_thread = threading.Thread(target=keep_alive_worker, daemon=True)
+    keepalive_thread.start()
 
     # Aktifkan scheduler background worker pengingat tim 24/7
     start_reminder_worker(app.client)

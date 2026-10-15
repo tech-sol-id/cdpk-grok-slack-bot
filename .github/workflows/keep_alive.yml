@@ -1,0 +1,15 @@
+name: Render Service Keep-Alive Heartbeat
+
+on:
+  schedule:
+    # Berjalan setiap 10 menit untuk mencegah Render free tier tidur (spin down)
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Grok Slack Bot Server
+        run: |
+          curl -s -f --retry 3 https://cdpk-grok-slack-bot.onrender.com || echo "Ping request executed"
