@@ -3,7 +3,7 @@ SURAT PERJANJIAN KERAHASIAAN DAN PEMBATASAN BEKERJA DI PERUSAHAAN KOMPETITOR
 
 (80 0026-2026OKT-6)
 
-Pada hari ini, Kamis, tanggal Lima belas, bulan Oktober, tahun Dua ribu dua puluh enam (15-10-2026) bertempat di Jakarta, yang bertanda tangan di bawah ini:
+Pada hari ini, Jumat, tanggal Enam belas, bulan Oktober, tahun Dua ribu dua puluh enam (16-10-2026) bertempat di Jakarta, yang bertanda tangan di bawah ini:
 
 Yang berikutnya akan disebut Pihak Pertama, dalam hal ini bertindak atas nama PT Citradata Purnakharisma, yaitu perusahaan yang bergerak di bidang distribusi alat telekomunikasi di Jakarta Barat menyatakan:
 
