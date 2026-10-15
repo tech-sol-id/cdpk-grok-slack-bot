@@ -39,7 +39,7 @@ T04042025,Villa Aulia,Finance and Accounting,Finance and Accounting,Supervisor,P
 T01022025,Nada Najiha,Corporate Secretary,Management,Manager,PT Teknologi Chayani Harsa,2025-02-21,nadanajihaa@gmail.com,1998-07-12,28,Female,Single,Islam,TK/0,96.328.532.5-016.000,3174065207980006
 T05042025,Alfian Huzhayya,Project Management Office,Management,Manager,PT Teknologi Chayani Harsa,2025-04-10,alfianhzhyyaa32@gmail.com,1998-05-11,28,Male,Married,Islam,K/2,93.134.272.9-035.000,3173051105980004
 68092023,Azizah Febriyanti Siregar,Sales Vice Manager,Retail,Head,Pusat,2023-08-24,azizahhsiregaar14@gmail.com,1998-02-14,28,Female,Widow,Islam,TK/1,76.149.350.1-432.000,3275045402980016
-42012020,Luthfi Kurniawan,Delivery,Finance and Accounting,Staff,Pusat,2020-01-22,lutfikurniawan349@gmail.com,1999-03-26,27,Male,Single,Islam,TK/0,82.176.202.8-502.000,3326092603990006
+42012020,Luthfi Kurniawan,Delivery,Finance and Accounting,Staff,Pusat,2020-01-22,,1999-03-26,27,Male,Single,Islam,TK/0,82.176.202.8-502.000,3326092603990006
 73012024,Zulfatun Ni'mah,Account Receivable,Finance and Accounting,Staff,Pusat,2024-01-29,faulfa170@gmail.com,1999-04-17,27,Female,Married,Islam,TK/0,94.594.521.0-032.000,3173035704990001
 85052026,Muhamad Anjar Winata,Office boy,Human Resource,Staff,Pusat,2026-05-18,gibranwinataa@gmail.com,1999-09-10,27,Male,Single,Islam,K/2,,3201251009000006
 66072023,Isabella Stevani,Head of Human Resources,Human Resource,Head,Pusat,2023-07-03,isabella@citradata.id,2000-09-27,26,Female,Single,Christian,TK/0,39.579.154.4-026.000,3573026709000001

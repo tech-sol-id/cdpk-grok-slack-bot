@@ -15,13 +15,6 @@ Pada hari ini Selasa, tanggal Enam, bulan Oktober, tahun Dua ribu dua puluh enam
 	Direktur, CV Madu Citrakom, yang beralamat di Jl. Lapangan Bola No 8, Kembangan, Srengseng, Jakarta Barat, yang selanjutnya disebut PIHAK KEDUA.
 	
 
-	
-
-	
-
-	
-
-	 
 PIHAK PERTAMA dan PIHAK KEDUA untuk selanjutnya secara sendiri-sendiri disebut “PIHAK” dan secara bersama-sama disebut “PARA PIHAK”.
 
 
@@ -38,6 +31,12 @@ RUANG LINGKUP
 1. PIHAK PERTAMA menyewakan kepada PIHAK KEDUA 2 (dua) unit toko yang beralamat di Glodok Harco lantai 2 blok A No. 2 dan 3, untuk digunakan oleh PIHAK KEDUA sebagai tempat kegiatan usaha.
 2. PIHAK PERTAMA menjamin bahwa PIHAK PERTAMA memiliki hak dan kewenangan yang sah untuk menyewakan objek sewa kepada PIHAK KEDUA.
 3. PIHAK KEDUA menyatakan telah mengetahui dan menerima kondisi objek sewa setelah melakukan pemeriksaan terhadap objek sewa sebelum dimulainya masa sewa.
+
+
+
+
+
+
 PASAL 2
 JANGKA WAKTU SEWA
 1. Masa sewa berlaku selama 2 (dua) tahun, terhitung sejak 15 Oktober 2026 sampai dengan 14 Oktober 2028.
@@ -62,6 +61,8 @@ TUJUAN SEWA
    2. PIHAK KEDUA wajib menjaga kebersihan, keamanan, ketertiban, dan kondisi objek sewa selama masa sewa.
    3. PIHAK KEDUA tidak diperkenankan menggunakan objek sewa untuk kegiatan yang melanggar hukum atau ketentuan pengelola Harco.
    4. PIHAK KEDUA wajib mematuhi ketentuan, tata tertib, dan peraturan yang berlaku di lingkungan Harco sepanjang ketentuan tersebut diberitahukan secara wajar kepada PIHAK KEDUA.
+
+
 PASAL 5
 HAK DAN KEWAJIBAN PIHAK PERTAMA
 PIHAK PERTAMA berkewajiban:
@@ -103,8 +104,6 @@ KEADAAN KAHAR
    3. PIHAK yang terkena Keadaan Kahar wajib melakukan usaha terbaiknya dengan bekerja sama dengan PIHAK lainnya untuk segera melanjutkan kembali pelaksanaan dari kewajiban PIHAK yang terkena Keadaan Kahar.
    4. Apabila Keadaan Kahar berlangsung selama jangka waktu 2 (dua) bulan berturut-turut, maka PARA PIHAK setuju untuk mengakhiri Perjanjian ini.
    5. Apabila terjadi Keadaan Kahar, maka PIHAK KEDUA dapat mengajukan modifıkasi dan/atau penyesuaian kesepakatan kepada PIHAK PERTAMA untuk memastikan bahwa kesepakatan tetap dapat berjalan sampai selesai, paling lambat 14 (empat belas) hari kalender sesudah pemberitahuan Keadaan Kahar sebagaimana dimaksud pada ayat (2).
-
-
 PASAL 11
 PENYELESAIAN PERSELISIHAN
    1. Dalam hal terjadi perselisihan dan/atau perbedaan penafsiran terkait pelaksanaan Perjanjian ini, PARA PIHAK sepakat untuk menyelesaikannya secara musyawarah dan mufakat.
@@ -117,10 +116,6 @@ Perubahan dan/atau tambahan dalam pelaksanaan Perjanjian ini, akan diatur dalam 
 
 
 Demikian Perjanjian ini dibuat dan ditandatangani oleh PARA PIHAK.
-
-
-
-
 
 
 PIHAK PERTAMA,

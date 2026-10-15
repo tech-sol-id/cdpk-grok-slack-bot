@@ -33,7 +33,7 @@ Marketing Offline
 Marketing Online
 (Jihan)
 
---- Slide 2 ---
+--- Slide 3 ---
 Technic
 Sales Retail
 Finance & Accounting
@@ -57,7 +57,7 @@ Evertac
 Komisaris
 Administration
 
---- Slide 3 ---
+--- Slide 4 ---
 Solutions
 Sales
 Finance
