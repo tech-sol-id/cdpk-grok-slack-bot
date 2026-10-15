@@ -3,6 +3,7 @@ import re
 import json
 import math
 import base64
+import requests
 import urllib.request
 import logging
 import threading
@@ -108,9 +109,8 @@ def trigger_cloud_sync() -> tuple:
         logger.error(f"Gagal memicu GitHub dispatch: {e}")
         return False, str(e)
 
-def extract_slack_media(client, event: dict) -> list:
-    """Mengunduh gambar atau mengekstrak halaman pertama PDF yang dilampirkan di Slack untuk Grok Vision."""
-    files = event.get("files", [])
+def download_and_convert_media(client, files: list) -> list:
+    """Mengunduh gambar atau mengekstrak halaman pertama PDF yang dilampirkan di Slack untuk Grok Vision menggunakan requests."""
     if not files:
         return []
 
@@ -118,34 +118,63 @@ def extract_slack_media(client, event: dict) -> list:
     token = getattr(client, "token", None) or os.environ.get("SLACK_BOT_TOKEN")
 
     for f in files:
+        file_id = f.get("id")
+        fname = f.get("name", "attachment")
         mimetype = f.get("mimetype", "")
         url = f.get("url_private_download") or f.get("url_private")
-        fname = f.get("name", "attachment")
+
+        # Jika metadata file belum lengkap, fetch via files.info API
+        if not url and file_id:
+            try:
+                f_info = client.files_info(file=file_id).get("file", {})
+                url = f_info.get("url_private_download") or f_info.get("url_private")
+                mimetype = f_info.get("mimetype", mimetype)
+                fname = f_info.get("name", fname)
+            except Exception as e:
+                logger.warning(f"Gagal mengambil detail files.info untuk {file_id}: {e}")
+
         if not url:
             continue
 
-        try:
-            req = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}"})
-            with urllib.request.urlopen(req, timeout=20) as resp:
-                data = resp.read()
+        # Deteksi fallback mimetype berdasarkan ekstensi
+        fn_lower = fname.lower()
+        if not mimetype or mimetype == "application/octet-stream":
+            if fn_lower.endswith((".png", ".jpg", ".jpeg", ".webp", ".gif")):
+                mimetype = f"image/{'jpeg' if fn_lower.endswith(('.jpg', '.jpeg')) else fn_lower.split('.')[-1]}"
+            elif fn_lower.endswith(".pdf"):
+                mimetype = "application/pdf"
 
-            # 1. Jika file berupa gambar langsung (PNG, JPEG, WebP, GIF)
+        try:
+            resp = requests.get(
+                url,
+                headers={"Authorization": f"Bearer {token}", "User-Agent": "cdpk-grok-slack-bot"},
+                timeout=25
+            )
+            if resp.status_code != 200:
+                logger.warning(f"HTTP {resp.status_code} saat mengunduh file {fname} dari Slack")
+                continue
+
+            data = resp.content
+            if not data or b"<!DOCTYPE html>" in data[:100] or b"<html" in data[:100]:
+                logger.warning(f"File {fname} mengembalikan HTML login alih-alih data binary valid")
+                continue
+
+            # 1. File berupa gambar langsung (PNG, JPEG, WebP, GIF)
             if mimetype.startswith("image/"):
                 b64_str = base64.b64encode(data).decode("utf-8")
                 media_items.append({
                     "type": "image_url",
                     "image_url": {"url": f"data:{mimetype};base64,{b64_str}"}
                 })
-                logger.info(f"Berhasil memuat gambar lampiran Slack: {fname} ({mimetype})")
+                logger.info(f"Berhasil memuat gambar lampiran Slack: {fname} ({mimetype}, {len(data)} bytes)")
 
-            # 2. Jika file berupa dokumen PDF (skema blueprint / denah arsitektur)
-            elif mimetype == "application/pdf" or fname.lower().endswith(".pdf"):
+            # 2. File berupa dokumen PDF (skema blueprint / denah arsitektur)
+            elif mimetype == "application/pdf" or fn_lower.endswith(".pdf"):
                 try:
                     import fitz  # PyMuPDF
                     doc = fitz.open(stream=data, filetype="pdf")
                     if len(doc) > 0:
                         page = doc[0]
-                        # Render halaman pertama dengan resolusi tajam
                         pix = page.get_pixmap(dpi=150)
                         png_bytes = pix.tobytes("png")
                         b64_str = base64.b64encode(png_bytes).decode("utf-8")
@@ -159,6 +188,64 @@ def extract_slack_media(client, event: dict) -> list:
                     logger.warning(f"Gagal mengonversi PDF {fname} ke gambar via PyMuPDF: {e}")
         except Exception as e:
             logger.warning(f"Gagal mengunduh file lampiran {fname} dari Slack: {e}")
+
+    return media_items
+
+def get_media_items_for_message(client, channel: str, event: dict) -> list:
+    """Mengekstrak seluruh media gambar/PDF dari pesan Slack (dari event langsung, conversations.replies, atau riwayat thread)."""
+    # 1. Cek langsung dari event jika ada files
+    event_files = event.get("files", [])
+    if event_files:
+        items = download_and_convert_media(client, event_files)
+        if items:
+            return items
+
+    # 2. Ambil dari Slack API (karena Slack sering menghilangkan 'files' pada event app_mention)
+    target_ts = event.get("ts")
+    thread_ts = event.get("thread_ts") or target_ts
+
+    try:
+        res = client.conversations_replies(channel=channel, ts=thread_ts, limit=15)
+        messages = res.get("messages", [])
+
+        # Cari pada pesan pemicu (ts yang sama)
+        for m in messages:
+            if m.get("ts") == target_ts and m.get("files"):
+                items = download_and_convert_media(client, m.get("files", []))
+                if items:
+                    logger.info(f"Berhasil mengekstrak media pada pesan pemicu mention (ts: {target_ts})")
+                    return items
+
+        # Jika belum ada, periksa pesan-pesan sebelumnya dalam thread (dari yang paling baru)
+        auth_test_user = ""
+        try:
+            auth_test_user = client.auth_test().get("user_id", "")
+        except Exception:
+            pass
+
+        for m in reversed(messages):
+            if m.get("files") and m.get("user") != auth_test_user:
+                items = download_and_convert_media(client, m.get("files", []))
+                if items:
+                    logger.info(f"Berhasil mengekstrak media dari konteks thread (ts: {m.get('ts')})")
+                    return items
+    except Exception as e:
+        logger.warning(f"Gagal memeriksa conversations_replies untuk file lampiran: {e}")
+
+    # 3. Failsafe: Cek conversations.history jika belum ditemukan
+    if target_ts:
+        try:
+            h_res = client.conversations_history(channel=channel, latest=target_ts, inclusive=True, limit=2)
+            for m in h_res.get("messages", []):
+                if m.get("ts") == target_ts and m.get("files"):
+                    items = download_and_convert_media(client, m.get("files", []))
+                    if items:
+                        logger.info(f"Berhasil mengekstrak media via conversations_history (ts: {target_ts})")
+                        return items
+        except Exception as e:
+            logger.warning(f"Gagal memeriksa conversations_history untuk file lampiran: {e}")
+
+    return []
 
 def format_slack_text(text: str) -> str:
     """Mengonversi teks jawaban Grok menjadi format tampilan Slack Executive yang bersih dan rapi (tanpa tabel pipa dan tanpa istilah teknis file markdown)."""
@@ -424,7 +511,11 @@ def retrieve_relevant_knowledge(query: str, user_level: str = "STANDARD", top_k:
     else:
         allowed_subfolders = {"umum"}
 
-    raw_tokens = [t.lower() for t in re.findall(r'[a-zA-Z0-9]+', query) if len(t) >= 2]
+    # Normalisasi teks query (contoh i.safe, i-safe -> isafe)
+    cleaned_query = query.lower()
+    cleaned_query = re.sub(r'i[\.\-_ ]safe', 'isafe', cleaned_query)
+
+    raw_tokens = [t.lower() for t in re.findall(r'[a-zA-Z0-9]+', cleaned_query) if len(t) >= 2]
     stop_words = {
         "apa", "dan", "yang", "di", "ke", "dari", "ini", "itu", "untuk", "pada", "adalah",
         "saya", "bisa", "bagaimana", "apakah", "ttg", "tentang", "jelaskan", "tolong", "info", "kasih",
@@ -434,8 +525,25 @@ def retrieve_relevant_knowledge(query: str, user_level: str = "STANDARD", top_k:
     if not search_tokens:
         search_tokens = raw_tokens
 
-    # Deteksi kode model/produk (mengandung kombinasi huruf & angka, misal 'is440', 'slr5000', 'rg170')
-    product_codes = [t for t in raw_tokens if any(c.isdigit() for c in t) and any(c.isalpha() for c in t)]
+    # Kamus alias merek & lini produk CDPK HQ
+    brand_aliases = {
+        "isafe": ["is540", "is440", "is940", "is945", "is530", "i_safe", "isafe", "atex", "iecex", "intrinsically", "zone"],
+        "conquest": ["conquest", "ex201", "s23", "s29", "rugged"],
+        "ruggear": ["rg880", "rg725", "rg655", "rg170", "ruggear"],
+        "motorola": ["slr5000", "slr8000", "r7", "mototrbo", "xir", "repeater"],
+        "fmtcs": ["omub", "orub", "das", "coupler", "splitter", "fmtcs", "lrf"],
+        "skywoods": ["diving", "outdoor", "flashlight", "senter"],
+        "tramigo": ["mcptt", "t360", "mission critical"],
+        "pocstar": ["poc", "ptt", "broadband", "walkie-talkie"],
+    }
+
+    expanded_tokens = list(search_tokens)
+    for st in search_tokens:
+        if st in brand_aliases:
+            expanded_tokens.extend(brand_aliases[st])
+
+    # Deteksi kode model/produk (mengandung kombinasi huruf & angka, misal 'is540', 'is440', 'slr5000', 'rg170')
+    product_codes = [t for t in expanded_tokens if any(c.isdigit() for c in t) and any(c.isalpha() for c in t)]
 
     # Sinonim istilah teknis dari Bahasa Indonesia ke Bahasa Inggris untuk dokumen internasional
     synonyms = {
@@ -448,8 +556,7 @@ def retrieve_relevant_knowledge(query: str, user_level: str = "STANDARD", top_k:
         "desain": ["design", "das", "omu", "oru", "architecture", "diagram"],
         "gambar": ["diagram", "schematic", "blueprint", "plan", "riser"],
     }
-    expanded_tokens = list(search_tokens)
-    for st in search_tokens:
+    for st in list(expanded_tokens):
         if st in synonyms:
             expanded_tokens.extend(synonyms[st])
 
@@ -652,26 +759,40 @@ def get_effective_system_prompt(user_access: dict = None, query: str = "") -> st
 
     solution_architect_instruction = (
         "🧠 KAPABILITAS MULTI-REASONING EKSEKUTIF, TEKNIS & BISNIS (CDPK HQ STRATEGIC CO-PILOT):\n"
-        "1. ANALISIS MULTIMODAL & REKAYASA TOPOLOGI (SOLUTIONS ARCHITECT):\n"
+        "1. ANALISIS MULTIMODAL GAMBAR, BROSUR & SPESIFIKASI PERANGKAT:\n"
+        "   - Jika pengguna melampirkan gambar, brosur, atau spesifikasi perangkat (contoh: rugged smartphone, radio DMR, antena, power supply, atau blueprint denah), Anda WAJIB menganalisis data visual secara detail:\n"
+        "     * Identifikasi merek & tipe perangkat (misal: Conquest S23, CAT, Sonim, Motorola, dll).\n"
+        "     * Ekstrak spesifikasi teknis utama: Chipset/prosesor, RAM/ROM, kapasitas baterai & kecepatan charging, konektivitas (5G, DMR radio, PoC, Wi-Fi, Bluetooth), kamera (standar, night vision, thermal imaging), dan proteksi (IP68, MIL-STD-810H).\n"
+        "2. REASONING KOMPARATIF: COMMERCIAL RUGGED VS. INTRINSICALLY SAFE (ATEX/IECEx):\n"
+        "   - Pahami perbedaan fundamental: Smartphone rugged komersial (seperti Conquest S23) memiliki spek baterai/charging sangat besar (10.000mAh, 66W) dan DMR/thermal bawaan, NAMUN TIDAK MEMILIKI SERTIFIKASI INTRINSICALLY SAFE (Ex-Proof) untuk atmosfer mudah meledak (Hazardous Area Zone 1/21 atau Zone 2/22).\n"
+        "   - Di area berisiko tinggi (Kilang Minyak, Rig Migas, Pabrik Pupuk, Kimia, Tambang Batu Bara, Storage Tangki LPG/LNG seperti proyek Inpex Masela/Pertamina), perangkat non-Ex DILARANG KERAS karena percikan listrik mikro atau panas sirkuit baterai dapat memicu ledakan gas hidrokarbon.\n"
+        "3. MAPPING PORTOFOLIO RESMI CDPK HQ (i.Safe MOBILE & RUGGEAR):\n"
+        "   - Flagship 5G Intrinsically Safe Smartphone: i.Safe Mobile IS540.1 (ATEX/IECEx Zone 1/21) & IS540.2 (ATEX/IECEx Zone 2/22).\n"
+        "     * Dilengkapi Qualcomm QCM6490 Octa-Core, 5G NR, Wi-Fi 6, 48MP Camera, 6\" Gorilla Glass 3.\n"
+        "     * Port 16-pin ISM Interface: konektor aman ledakan fisik untuk memasang modul kamera thermal (IS-TC1A.1), barcode scanner (IS-TH1xx.1), atau Remote Speaker Microphone (RSM).\n"
+        "   - Replikasi Fitur DMR Walkie-talkie: Pada i.Safe Mobile, komunikasi suara push-to-talk dilakukan via Mission Critical PoC (POCStar / Motorola WAVE PTX) menggunakan tombol fisik PTT merah, atau dihubungkan ke radio Motorola MOTOTRBO via gateway.\n"
+        "   - Replikasi Thermal Imaging: Menggunakan aksesori resmi Ex-rated IS-TC1A.1 yang terpasang pada port ISM 16-pin IS540.1 tanpa melanggar sertifikasi Zone 1.\n"
+        "   - Opsi Feature Phone Zone 1/21: i.Safe Mobile IS440.1 (keypad fisik, 4G, PTT).\n"
+        "   - Opsi Tablet Industrial Zone 1/21 & Zone 2/22: i.Safe Mobile IS940.1 / IS945.1 (layar 10.1\", 5G, untuk skema SCADA/inspeksi visual).\n"
+        "   - Opsi Heavy Rugged Non-Ex: RugGear RG880 / RG725 (jika pengguna HANYA butuh ketahanan fisik di luar zona ledakan).\n"
+        "4. ANALISIS MULTIMODAL & REKAYASA TOPOLOGI (SOLUTIONS ARCHITECT):\n"
         "   - Analisis visual denah/blueprint/riser diagram gedung/hotel/pabrik (lantai, zona, basement, riser kabel vertikal, head-end server room).\n"
         "   - Reasoning arsitektur DAS & Radio: Active Optical DAS (FMTCS OMU & ORU via fiber optik untuk eliminasi redaman bentang jauh), Passive RF Distribution (FMTCS Coupler CP-PD-400R & Splitter UDSS400C), Antena Omni Indoor (ANTI400R), dan Repeater Motorola MOTOTRBO (SLR 5000 / SLR 8000).\n"
-        "2. REASONING FISIKA SINYAL & RF LINK BUDGET:\n"
+        "5. REASONING FISIKA SINYAL & RF LINK BUDGET:\n"
         "   - Hitung estimasi redaman: Free Space Path Loss (FSPL), pelemahan kabel coaxial per 100m vs fiber optik, dan target kuat sinyal indoor minimal -95 dBm untuk DMR digital tanpa blind-spot.\n"
-        "3. REASONING STRATEGI BISNIS, TENDER & CLOSING PENJUALAN:\n"
+        "6. REASONING STRATEGI BISNIS, TENDER & CLOSING PENJUALAN:\n"
         "   - Susun proposal dengan 'Win-Themes' teruji: Sertifikasi ISO 9001/14001/45001 Citradata, 30+ tahun distributor & Authorized Service Center Motorola resmi sejak 1993, dan garansi suku cadang original.\n"
         "   - Bedah keunggulan kompetitif (Battlecard) menghadapi kompetitor lain (Hytera/Kenwood/radio unbranded) dengan menonjolkan Total Cost of Ownership (TCO) dan keandalan industri.\n"
-        "4. REASONING KEPATUHAN REGULASI & KESELAMATAN INDUSTRI:\n"
+        "7. REASONING KEPATUHAN REGULASI & KESELAMATAN INDUSTRI:\n"
         "   - Regulasi frekuensi SDPPI/Kominfo (VHF/UHF, izin stasiun radio ISR).\n"
         "   - Standar proteksi ledakan ATEX / IECEx Zone 1/21 vs Zone 2/22 untuk sektor Migas (Pertamina), Pupuk, dan Tambang menggunakan perangkat i.Safe Mobile Intrinsically Safe.\n"
-        "5. REASONING OPERASIONAL, SUPPLY CHAIN & LAYANAN PURNA JUAL (ASC):\n"
+        "8. REASONING OPERASIONAL, SUPPLY CHAIN & LAYANAN PURNA JUAL (ASC):\n"
         "   - Lead time pengadaan komponen impor vs jadwal serah terima (FAT/SAT).\n"
         "   - Garansi resmi, SLA pemeliharaan berkala, dan turn-around time (TAT) perbaikan di lab resmi Citradata.\n"
-        "6. REASONING MIGRASI HIBRIDA BERTAHAP (ANALOG -> DMR -> POCSTAR):\n"
-        "   - Tawarkan skema transisi bertahap: integrasikan radio analog lawas ke Digital DMR Tier II/III, serta pasangkan gateway ke aplikasi Push-to-Talk over Cellular (POCStar/Broadband) agar investasi eksisting klien terlindungi.\n"
-        "7. GENERATE DOKUMEN OTOMATIS (EXCEL BOM & WORD PROPOSAL):\n"
+        "9. GENERATE DOKUMEN OTOMATIS (EXCEL BOM & WORD PROPOSAL):\n"
         "   - WAJIB: Jika pengguna meminta Bill of Materials (BOM), estimasi BOM, rincian biaya/perangkat, file Excel, atau dokumen spreadsheet, Anda WAJIB MEMANGGIL TOOL 'generate_bom_excel' dengan data terstruktur (part number, nama alat, kuantitas, estimasi harga) agar file Excel .xlsx otomatis diunggah ke chat Slack!\n"
         "   - Jika pengguna meminta proposal teknis tertulis, arsitektur solusi, atau dokumen Word, PANGGIL TOOL 'generate_proposal_docx' agar file dokumen Word .docx otomatis diunggah ke chat Slack!\n"
-        f"8. PENGINGAT & REMINDER TIM OTOMATIS (AI SCHEDULE CO-PILOT):\n"
+        f"10. PENGINGAT & REMINDER TIM OTOMATIS (AI SCHEDULE CO-PILOT):\n"
         f"   - WAKTU SERVER SAAT INI (WIB): {get_now_wib().strftime('%A, %d %B %Y pukul %H:%M:%S WIB')}\n"
         f"   - Jika pengguna meminta mengingatkan diri sendiri, rekan kerja, atau channel (contoh: 'ingatkan saya...', 'ingatkan @Richard besok jam 9 pagi...', 'jadwalkan reminder evaluasi setiap Senin jam 08:30 WIB...'):\n"
         f"     * Hitung selisih detik ('delay_seconds') dari waktu server saat ini ke waktu target pengingat.\n"
@@ -706,13 +827,25 @@ def get_effective_system_prompt(user_access: dict = None, query: str = "") -> st
     return "\n\n".join(prompt_parts)
 
 def get_thread_context(client, channel: str, thread_ts: str, bot_user_id: str, user_access: dict = None, query: str = "") -> list:
-    """Mengambil riwayat percakapan dalam thread agar percakapan memiliki memori/konteks."""
+    """Mengambil riwayat percakapan dalam thread agar percakapan memiliki memori/konteks lengkap (termasuk media lampiran)."""
     messages = [{"role": "system", "content": get_effective_system_prompt(user_access, query=query)}]
     try:
-        result = client.conversations_replies(channel=channel, ts=thread_ts, limit=10)
+        result = client.conversations_replies(channel=channel, ts=thread_ts, limit=12)
         for msg in result.get("messages", []):
             role = "assistant" if msg.get("user") == bot_user_id else "user"
             clean_text = clean_mention(msg.get("text", ""))
+
+            # Jika pesan user memiliki lampiran file, coba muat medianya ke riwayat
+            if role == "user" and msg.get("files"):
+                thread_media = download_and_convert_media(client, msg.get("files", []))
+                if thread_media:
+                    content_list = []
+                    if clean_text:
+                        content_list.append({"type": "text", "text": clean_text})
+                    content_list.extend(thread_media)
+                    messages.append({"role": role, "content": content_list})
+                    continue
+
             if clean_text:
                 messages.append({"role": role, "content": clean_text})
     except Exception as e:
@@ -726,9 +859,16 @@ def handle_mention(event, say, client):
     thread_ts = event.get("thread_ts", event["ts"])
     user_text = clean_mention(event.get("text", ""))
 
-    if not user_text:
+    # Ambil seluruh media gambar atau dokumen PDF (dari event langsung, API replies, atau riwayat thread)
+    media_items = get_media_items_for_message(client, channel, event)
+
+    if not user_text and not media_items:
         say(text="Halo! Ada yang bisa saya bantu untuk tim CDPK HQ?", thread_ts=thread_ts)
         return
+
+    # Jika pengguna hanya mengunggah gambar tanpa teks instruksi
+    if not user_text and media_items:
+        user_text = "Mohon pelajari dan analisis spesifikasi dari gambar/dokumen teknis yang saya lampirkan ini, serta berikan rekomendasi solusi yang tepat sesuai standar CDPK HQ."
 
     # Tambahkan reaksi emoji tanda bot sedang memproses
     try:
@@ -768,27 +908,19 @@ def handle_mention(event, say, client):
             pass
         return
 
-    # Ekstraksi file lampiran (gambar / blueprint PDF) untuk Grok Vision
-    media_items = extract_slack_media(client, event)
-    # Jika di dalam thread dan tidak ada file di mention ini, cek seluruh riwayat pesan thread
-    if not media_items and "thread_ts" in event:
-        try:
-            replies = client.conversations_replies(channel=channel, ts=thread_ts, limit=10)
-            for m in reversed(replies.get("messages", [])):
-                if m.get("files") and m.get("user") != bot_user_id:
-                    media_items = extract_slack_media(client, m)
-                    if media_items:
-                        logger.info(f"Berhasil menemukan file dari thread context: {len(media_items)} media items")
-                        break
-        except Exception as e:
-            logger.warning(f"Gagal mengekstrak file dari riwayat thread: {e}")
-
-    # Ambil konteks jika berada dalam thread, atau buat percakapan baru
+    # Ambil konteks percakapan
     if "thread_ts" in event:
         conversation = get_thread_context(client, channel, thread_ts, bot_user_id, user_access, query=user_text)
-        if conversation and conversation[-1]["role"] == "user" and conversation[-1]["content"] == user_text:
-            if media_items:
-                conversation[-1]["content"] = [{"type": "text", "text": user_text}] + media_items
+        # Jika pesan terakhir adalah user dengan teks yang sama, pastikan media_items terpasang
+        if conversation and conversation[-1]["role"] == "user":
+            if isinstance(conversation[-1]["content"], str):
+                if media_items:
+                    conversation[-1]["content"] = [{"type": "text", "text": conversation[-1]["content"]}] + media_items
+            elif isinstance(conversation[-1]["content"], list) and media_items:
+                existing_urls = {item.get("image_url", {}).get("url") for item in conversation[-1]["content"] if item.get("type") == "image_url"}
+                for mi in media_items:
+                    if mi.get("image_url", {}).get("url") not in existing_urls:
+                        conversation[-1]["content"].append(mi)
         else:
             current_content = [{"type": "text", "text": user_text}] + media_items if media_items else user_text
             conversation.append({"role": "user", "content": current_content})
@@ -819,8 +951,13 @@ def handle_direct_message(event, say, client):
         return
 
     user_text = event.get("text", "").strip()
-    if not user_text and not event.get("files"):
+    media_items = get_media_items_for_message(client, event["channel"], event)
+
+    if not user_text and not media_items:
         return
+
+    if not user_text and media_items:
+        user_text = "Mohon pelajari dan analisis spesifikasi dari gambar/dokumen teknis yang saya lampirkan ini, serta berikan rekomendasi solusi yang tepat sesuai standar CDPK HQ."
 
     try:
         client.reactions_add(channel=event["channel"], timestamp=event["ts"], name="thinking_face")
@@ -857,7 +994,6 @@ def handle_direct_message(event, say, client):
             pass
         return
 
-    media_items = extract_slack_media(client, event)
     user_content = [{"type": "text", "text": user_text}] + media_items if media_items else user_text
 
     conversation = [
