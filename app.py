@@ -826,19 +826,100 @@ def get_channel_identifier(client, channel_id: str) -> str:
         logger.debug(f"conversations_info gagal untuk {channel_id}: {e}")
     return ch_key
 
+def check_user_has_permission(user_level: str, is_direksi_req: bool, is_finance_req: bool, text_lower: str) -> bool:
+    """Mengecek apakah pengguna memiliki hak akses/wewenang sesuai role ke data yang diminta."""
+    if user_level == "DIREKSI":
+        return True
+
+    if is_direksi_req:
+        if user_level == "CORP_SECRETARY":
+            # Corporate Secretary BISA akses corporate, persuratan, legalitas
+            # TAPI DILARANG akses gaji, payroll, dividen, komisi, bonus, remunerasi, nip, personalia
+            corp_sec_forbidden = [
+                "gaji", "payroll", "salary", "upah", "dividen", "komisi", "bonus",
+                "saham", "remunerasi", "rekap gaji", "slip gaji", "thp", "nip", "nik", "ktp", "npwp"
+            ]
+            if any(w in text_lower for w in corp_sec_forbidden):
+                return False
+            return True
+        return False
+
+    if is_finance_req:
+        return user_level in ["DIREKSI", "FINANCE"]
+
+    return True
+
+def send_security_audit_alert(client, user_access: dict, channel_id: str, user_text: str, category: str):
+    """
+    Mengirimkan laporan audit instan via Slack Direct Message (DM) ke Pak Adrian (Vice Director)
+    apabila terdeteksi ada permintaan data sensitif dari pengguna yang tidak memiliki wewenang akses.
+    """
+    if not client:
+        return
+
+    adrian_user_id = os.environ.get("ADMIN_AUDIT_USER_ID", "U0C2CR9NAF7")
+    user_id = user_access.get("user_id", "Unknown") if user_access else "Unknown"
+    user_name = user_access.get("name", "Pengguna Tidak Terdaftar") if user_access else "Pengguna Tidak Terdaftar"
+    user_role = user_access.get("level", "STANDARD") if user_access else "STANDARD"
+    user_email = user_access.get("email", "-") if user_access else "-"
+
+    # Jangan kirim alert ke diri sendiri jika yang meminta adalah Pak Adrian
+    if user_id == adrian_user_id:
+        return
+
+    now_str = get_now_wib().strftime('%d/%m/%Y pukul %H:%M:%S WIB')
+
+    # Format nama / link channel
+    ch_ident = get_channel_identifier(client, channel_id)
+    ch_display = "Direct Message (DM Pribadi)" if (channel_id and channel_id.startswith("D")) or ch_ident == "im" else f"<#{channel_id}> (#{ch_ident})"
+
+    alert_text = (
+        "🚨 *[SECURITY AUDIT LOG] Percobaan Akses Data Sensitif Tanpa Izin*\n\n"
+        f"Grok CDPK mendeteksi dan telah *memblokir* permintaan data rahasia dari pengguna yang tidak memiliki hak akses:\n\n"
+        f"• *Nama Pemohon:* *{user_name}* (<@{user_id}>)\n"
+        f"• *Email / Role:* {user_email} | Tier: *{user_role}*\n"
+        f"• *Saluran / Lokasi:* {ch_display}\n"
+        f"• *Waktu Kejadian:* {now_str}\n"
+        f"• *Kategori Dokumen:* Akses Terlarang (*{category}*)\n"
+        f"• *Isi Permintaan:*\n"
+        f"> \"_{user_text}_\"\n\n"
+        "🔒 _Tindakan Otomatis: Permintaan telah langsung ditolak dan dicatat ke dalam audit trail sistem._"
+    )
+
+    try:
+        im_res = client.conversations_open(users=adrian_user_id)
+        target_im_channel = im_res.get("channel", {}).get("id")
+        if target_im_channel:
+            client.chat_postMessage(channel=target_im_channel, text=alert_text)
+        else:
+            client.chat_postMessage(channel=adrian_user_id, text=alert_text)
+        logger.info(f"Security audit alert berhasil dikirim ke Pak Adrian ({adrian_user_id}) untuk kueri dari {user_name} ({user_id})")
+    except Exception as e:
+        logger.error(f"Gagal mengirim security audit alert via conversations_open: {e}")
+        try:
+            client.chat_postMessage(channel=adrian_user_id, text=alert_text)
+        except Exception as e2:
+            logger.error(f"Gagal mengirim fallback security audit alert ke {adrian_user_id}: {e2}")
+
+    # Catat ke log file permanen
+    try:
+        audit_dir = os.path.join(os.path.dirname(__file__), "logs")
+        os.makedirs(audit_dir, exist_ok=True)
+        log_file = os.path.join(audit_dir, "security_access_audit.log")
+        with open(log_file, "a", encoding="utf-8") as f:
+            f.write(f"[{now_str}] UNAUTHORIZED | User: {user_name} ({user_id}, {user_email}, {user_role}) | Channel: {channel_id} | Category: {category} | Query: {user_text}\n")
+    except Exception as fe:
+        logger.debug(f"Gagal mencatat audit log ke file: {fe}")
+
 def check_channel_privacy_guard(client, channel_id: str, user_text: str, user_access: dict) -> Optional[str]:
     """
-    Memeriksa apakah permintaan data sensitif dilakukan pada channel yang aman.
-    Permintaan pada channel terbuka (yang ada member lain) DITOLAK demi kerahasiaan data.
+    Memeriksa apakah permintaan data sensitif dilakukan pada channel yang aman dan oleh user yang berwenang.
+    1. Jika TIDAK PUNYA AKSES: Ditolak langsung (di channel umum maupun DM) dan mengirimkan laporan audit instan ke Pak Adrian.
+    2. Jika PUNYA AKSES tetapi di channel publik: Ditolak dan diarahkan ke channel aman (#leadership / DM).
     """
     if not channel_id:
         return None
 
-    # 1. Direct Message (DM) selalu aman (1-on-1 dengan Grok)
-    if channel_id.startswith("D"):
-        return None
-
-    c_ident = get_channel_identifier(client, channel_id)
     text_lower = user_text.lower()
 
     # Cek apakah permintaan menyangkut data sensitif
@@ -849,6 +930,40 @@ def check_channel_privacy_guard(client, channel_id: str, user_text: str, user_ac
         # Dokumen umum (Datasheet, brosur, SOP umum, dll) bebas di semua channel
         return None
 
+    user_level = user_access.get("level", "STANDARD") if user_access else "STANDARD"
+    has_permission = check_user_has_permission(user_level, is_direksi_req, is_finance_req, text_lower)
+
+    # ==========================================================================
+    # KASUS 1: PENGGUNA TIDAK MEMILIKI AKSES (UNAUTHORIZED)
+    # Berlaku baik di Channel Terbuka maupun di Direct Message (DM)
+    # ==========================================================================
+    if not has_permission:
+        category_name = "Direksi, HRD & Personalia" if is_direksi_req else "Finance & Accounting"
+        # Kirim notifikasi audit langsung ke Pak Adrian via DM
+        send_security_audit_alert(client, user_access, channel_id, user_text, category_name)
+
+        if is_direksi_req:
+            return (
+                "🔒 *Akses Data Sensitif / HRD Dibatasi di Channel Ini*\n\n"
+                "Demi menjaga kerahasiaan data perusahaan dan privasi data pribadi karyawan (Data Privacy & Corporate Governance), "
+                "permintaan anda tidak dapat ditampilkan. Anda tidak mempunyai akses untuk informasi tersebut."
+            )
+        else:
+            return (
+                "🔒 *Akses Data Sensitif Dibatasi di Channel Ini*\n\n"
+                "Demi menjaga kerahasiaan data perusahaan (Data Privacy & Corporate Governance), "
+                "permintaan anda tidak dapat ditampilkan. Anda tidak mempunyai akses untuk informasi tersebut."
+            )
+
+    # ==========================================================================
+    # KASUS 2: PENGGUNA MEMILIKI AKSES (AUTHORIZED), TETAPI DI SALURAN TERBUKA/PUBLIK
+    # ==========================================================================
+    # Direct Message (DM) selalu aman (1-on-1 dengan Grok)
+    if channel_id.startswith("D"):
+        return None
+
+    c_ident = get_channel_identifier(client, channel_id)
+
     # Jika menyangkut data Direksi / Corporate / Legalitas / Gaji / HRD / Karyawan
     if is_direksi_req:
         # Hanya boleh di DM atau channel #leadership
@@ -857,8 +972,7 @@ def check_channel_privacy_guard(client, channel_id: str, user_text: str, user_ac
             return (
                 "🔒 *Akses Data Sensitif / HRD Dibatasi di Channel Ini*\n\n"
                 "Demi menjaga kerahasiaan data perusahaan dan privasi data pribadi karyawan (Data Privacy & Corporate Governance), "
-                "permintaan dokumen atau informasi kategori *HRD, Personalia (NIP/NIK/KTP/NPWP), Profil Karyawan, Direksi, Corporate, Legalitas, dan Penggajian* "
-                "tidak dapat ditampilkan pada channel publik/terbuka yang memiliki anggota lain.\n\n"
+                "permintaan anda tidak dapat ditampilkan pada channel publik/terbuka.\n\n"
                 "👉 *Silakan akses melalui:*\n"
                 "• Channel khusus Direksi: *#leadership*\n"
                 "• Atau melalui *Direct Message (DM) pribadi* langsung dengan Grok CDPK."
@@ -875,11 +989,11 @@ def check_channel_privacy_guard(client, channel_id: str, user_text: str, user_ac
         if c_ident not in FINANCE_CHANNELS and c_ident not in env_allowed:
             return (
                 "🔒 *Akses Data Sensitif Dibatasi di Channel Ini*\n\n"
-                "Demi menjaga kerahasiaan data perusahaan, permintaan dokumen atau informasi kategori "
-                "*Finance & Accounting serta Order Management* tidak dapat ditampilkan pada channel terbuka yang memiliki anggota lain.\n\n"
+                "Demi menjaga kerahasiaan data perusahaan (Data Privacy & Corporate Governance), "
+                "permintaan anda tidak dapat ditampilkan pada channel publik/terbuka.\n\n"
                 "👉 *Silakan akses melalui:*\n"
                 "• Channel khusus: *#grp-finance*, *#tch-finance*, atau *#leadership*\n"
-                "• Atau melalui *Direct Message (DM) pribadi* dengan Grok CDPK."
+                "• Atau melalui *Direct Message (DM) pribadi* langsung dengan Grok CDPK."
             )
 
     return None
