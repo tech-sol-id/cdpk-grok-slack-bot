@@ -1709,6 +1709,31 @@ def keep_alive_worker():
         except Exception as e:
             logger.debug(f"Keep-alive ping gagal: {e}")
 
+def sync_all_users_home_tab_worker(client):
+    """Mempublikasikan Home Tab secara otomatis ke seluruh anggota tim yang aktif di workspace pada saat startup."""
+    time.sleep(8)  # Tunggu koneksi socket mode stabil
+    try:
+        logger.info("Memulai sinkronisasi proaktif Home Tab untuk seluruh anggota workspace...")
+        res = client.users_list()
+        members = res.get("members", [])
+        real_users = [m for m in members if not m.get("is_bot") and not m.get("deleted") and m.get("id") != "USLACKBOT"]
+        synced = 0
+        for u in real_users:
+            uid = u.get("id")
+            try:
+                access = get_user_access_level(client, uid)
+                u_name = access.get("name", "Rekan Kerja")
+                u_lvl = access.get("level", "STANDARD")
+                view = build_home_tab_view(uid, user_name=u_name, role_level=u_lvl)
+                client.views_publish(user_id=uid, view=view)
+                synced += 1
+                time.sleep(0.2)
+            except Exception as e:
+                logger.debug(f"Gagal publish Home Tab untuk {uid}: {e}")
+        logger.info(f"Sinkronisasi Home Tab selesai: {synced}/{len(real_users)} pengguna diperbarui.")
+    except Exception as e:
+        logger.error(f"Gagal menjalankan sinkronisasi Home Tab global: {e}")
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 7860))
     health_thread = threading.Thread(target=start_health_server, args=(port,), daemon=True)
@@ -1721,6 +1746,10 @@ if __name__ == "__main__":
 
     # Aktifkan scheduler background worker pengingat tim 24/7
     start_reminder_worker(app.client)
+
+    # Sinkronisasi proaktif tampilan Home Tab ke seluruh anggota tim di workspace
+    home_sync_thread = threading.Thread(target=sync_all_users_home_tab_worker, args=(app.client,), daemon=True)
+    home_sync_thread.start()
 
     logger.info("Memulai Grok Slack Bot dalam Socket Mode...")
     handler = SocketModeHandler(app, SLACK_APP_TOKEN)
