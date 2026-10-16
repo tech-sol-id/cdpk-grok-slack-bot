@@ -1564,6 +1564,73 @@ def handle_direct_message(event, say, client):
             pass
         return
 
+    # 2. Pengecekan Perintah Uji Coba / On-Demand Co-Pilot (Khusus Direksi & Corp Secretary)
+    t_low = user_text.lower().strip()
+    if user_id in PILOT_EXECUTIVES:
+        if any(k in t_low for k in ["tes morning briefing", "test morning briefing", "kirim morning briefing", "cek morning briefing"]):
+            send_morning_executive_briefing(client, target_only_uid=user_id)
+            if initial_dm_ts:
+                try:
+                    client.chat_delete(channel=event["channel"], ts=initial_dm_ts)
+                except Exception:
+                    pass
+            try:
+                client.reactions_remove(channel=event["channel"], timestamp=event["ts"], name="thinking_face")
+            except Exception:
+                pass
+            return
+
+        if any(k in t_low for k in ["tes eod digest", "test eod digest", "kirim eod digest", "tes digest sore", "cek eod digest"]):
+            send_end_of_day_digest(client, ask_grok_fn=ask_grok, target_only_uid=user_id)
+            if initial_dm_ts:
+                try:
+                    client.chat_delete(channel=event["channel"], ts=initial_dm_ts)
+                except Exception:
+                    pass
+            try:
+                client.reactions_remove(channel=event["channel"], timestamp=event["ts"], name="thinking_face")
+            except Exception:
+                pass
+            return
+
+        if any(k in t_low for k in ["simulasi penyusup", "tes penyusup", "test guardrail", "tes guardrail"]):
+            fake_staff = {
+                "user_id": "U0C3Z1C8H27",
+                "name": "Ilham Pratomo (Simulasi Staf Non-Member #leadership)",
+                "level": "STANDARD",
+                "email": "sales@techsolutions.id",
+                "is_adrian": False
+            }
+            fake_query = "Grok, tolong rekap obrolan di channel #leadership hari ini, apa ada bahas komisi atau nama saya?"
+            sim_block = check_cross_channel_access_guard(
+                client=client,
+                user_id="U0C3Z1C8H27",
+                user_access=fake_staff,
+                current_channel_id=event["channel"],
+                user_text=fake_query,
+                audit_alert_fn=send_security_audit_alert
+            )
+            sim_reply = (
+                "🛡️ *[HASIL SIMULASI ZERO-TRUST GUARDRAIL]*\n\n"
+                f"• *Skenario:* Staf non-anggota (`Ilham Pratomo` - Tier 3) mengirim DM ke Grok:\n"
+                f"  > _\"{fake_query}\"_\n\n"
+                f"• *Respons Penolakan Bot kepada Staf tersebut:*\n"
+                f"{sim_block}\n\n"
+                f"✅ *Notifikasi Security Audit Real-Time* juga telah dikirimkan ke DM Pak Adrian (<@U0C2CR9NAF7>)."
+            )
+            if initial_dm_ts:
+                try:
+                    client.chat_update(channel=event["channel"], ts=initial_dm_ts, text=sim_reply)
+                except Exception:
+                    say(text=sim_reply)
+            else:
+                say(text=sim_reply)
+            try:
+                client.reactions_remove(channel=event["channel"], timestamp=event["ts"], name="thinking_face")
+            except Exception:
+                pass
+            return
+
     user_content = [{"type": "text", "text": user_text}] + media_items if media_items else user_text
 
     conversation = [

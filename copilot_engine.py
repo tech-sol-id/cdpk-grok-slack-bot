@@ -581,7 +581,7 @@ def parse_local_schedules_zero_token(target_user_id: Optional[str] = None) -> Di
     return {"today": active_today, "upcoming_soon": upcoming_soon}
 
 
-def send_morning_executive_briefing(client):
+def send_morning_executive_briefing(client, target_only_uid: Optional[str] = None):
     """
     TAHAP 2 (Morning Executive Briefing jam 07:45 WIB — 0 Token Local Python):
     Mengirimkan jadwal agenda/meeting hari ini dan status kesiapan operasional ke DM jajaran Direksi & Corp Secretary.
@@ -590,7 +590,9 @@ def send_morning_executive_briefing(client):
     day_names = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"]
     day_str = f"{day_names[now.weekday()]}, {now.strftime('%d %B %Y')}"
 
-    for exec_uid, prof in PILOT_EXECUTIVES.items():
+    targets = {target_only_uid: PILOT_EXECUTIVES[target_only_uid]} if (target_only_uid and target_only_uid in PILOT_EXECUTIVES) else PILOT_EXECUTIVES
+
+    for exec_uid, prof in targets.items():
         try:
             sched = parse_local_schedules_zero_token(target_user_id=exec_uid)
             today_items = sched.get("today", [])
@@ -657,7 +659,7 @@ def check_and_send_proactive_meeting_reminders(client):
 # ==============================================================================
 # TAHAP 3: END-OF-DAY DIGEST (JAM 17:30 WIB — ZERO-TRUST FILTERED PER EXECUTIVE)
 # ==============================================================================
-def send_end_of_day_digest(client, ask_grok_fn=None):
+def send_end_of_day_digest(client, ask_grok_fn=None, target_only_uid: Optional[str] = None):
     """
     TAHAP 3 (End-of-Day Digest jam 17:30 WIB):
     Mengirimkan ringkasan diskusi harian dan pending action items ke DM masing-masing Direksi.
@@ -704,7 +706,8 @@ def send_end_of_day_digest(client, ask_grok_fn=None):
             logger.debug(f"Gagal membaca history harian untuk #{cname} ({cid}): {e}")
 
     # 2. Susun dan kirimkan EOD Digest untuk masing-masing Pilot Executive sesuai keanggotaan channelnya
-    for exec_uid, prof in PILOT_EXECUTIVES.items():
+    targets = {target_only_uid: PILOT_EXECUTIVES[target_only_uid]} if (target_only_uid and target_only_uid in PILOT_EXECUTIVES) else PILOT_EXECUTIVES
+    for exec_uid, prof in targets.items():
         try:
             allowed_summaries = []
             for ch in bot_channels:
