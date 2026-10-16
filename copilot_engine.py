@@ -296,22 +296,36 @@ def detect_executive_mentions(text: str, sender_id: str) -> List[Dict[str, Any]]
 
 def is_meaningful_question_or_request(text: str) -> bool:
     """
-    Mengecek apakah pesan yang me-mention Direksi merupakan pertanyaan/permintaan/diskusi bermakna
-    (bukan sekadar 'siap pak', 'ok terima kasih pak', dll) agar Co-Pilot tepat guna & hemat token.
+    Mengecek apakah pesan yang me-mention Direksi merupakan pertanyaan, permintaan arahan,
+    atau diskusi teknis/bisnis bermakna (bukan sekadar laporan penutup 'siap pak', 'sudah dikirim pak', dll)
+    agar Smart Co-Pilot tepat guna & hemat token.
     """
     clean = re.sub(r"<@[A-Z0-9]+>", "", text).strip()
     if len(clean) < 12:
         return False
 
+    c_low = clean.lower().rstrip(".!,")
     trivial_phrases = {
         "siap pak", "siap bu", "baik pak", "baik bu", "oke pak", "ok pak", "oke bu", "ok bu",
         "terima kasih pak", "terima kasih bu", "makasih pak", "makasih bu", "noted pak", "noted bu",
         "thank you pak", "thanks pak", "pagi pak", "siang pak", "sore pak", "malam pak"
     }
-    if clean.lower().rstrip(".!,") in trivial_phrases:
+    if c_low in trivial_phrases:
         return False
 
-    return True
+    # Pastikan mengandung indikator pertanyaan, permintaan keputusan/arahan, atau bahasan teknis/bisnis
+    if "?" in clean:
+        return True
+
+    intent_keywords = [
+        "apa", "apakah", "bagaimana", "gimana", "berapa", "kapan", "dimana", "kenapa", "mengapa", "siapa",
+        "mohon", "tolong", "minta", "bisa", "boleh", "izin", "arahan", "pendapat", "saran", "masukan",
+        "setuju", "approve", "approval", "acc", "review", "cek", "konfirmasi", "solusi", "rekomendasi",
+        "spek", "spesifikasi", "harga", "penawaran", "quotation", "tender", "proyek", "project", "bom",
+        "isafe", "i.safe", "motorola", "fmtcs", "ruggear", "tramigo", "pocstar", "skywoods", "das", "repeater",
+        "how", "what", "when", "where", "why", "can", "could", "would", "please", "need", "help", "advise"
+    ]
+    return any(re.search(rf"\b{re.escape(kw)}\b", c_low) for kw in intent_keywords)
 
 
 def handle_smart_copilot_ghostwriter(
@@ -324,12 +338,12 @@ def handle_smart_copilot_ghostwriter(
     """
     TAHAP 1 (Smart Co-Pilot Ghostwriter) & ATURAN SILENT DROP (Mention Boundary):
     - Berjalan di background thread ketika ada pesan di channel publik/privat.
-    - Jika pesan me-mention anggota non-channel di channel tertutup (#leadership), menerapkan SILENT DROP mutlak (tidak melakukan apa-apa untuk non-direksi).
+    - Jika pesan me-mention anggota non-channel di channel tertutup (#leadership), menerapkan SILENT DROP mutlak.
     - Jika pesan me-mention salah satu dari 5 Pilot Direksi/Corp Secretary:
       1. Memverifikasi secara mutlak (`conversations.members`) bahwa Direksi yang di-mention MEMANG anggota resmi channel tersebut. Jika bukan anggota channel tersebut -> SILENT DROP!
       2. Mengecek Cooldown/Debounce agar hemat token dan tidak spam.
-      3. Mencari konteks di Knowledge Base CDPK HQ sesuai wewenang Direksi tersebut.
-      4. Menyusun Private Co-Pilot Draft (Ringkasan Konteks + Usulan Draf Balasan Siap Kirim) dan mengirimkannya via DM Pribadi ke Direksi yang bersangkutan (TIDAK menjawab di channel publik).
+      3. Mencari konteks di Knowledge Base CDPK HQ (top_k=3 fokus) sesuai wewenang Direksi tersebut.
+      4. Menyusun Private Co-Pilot Draft dengan `enable_tools=False` (hemat 1.750 token skema tools) dan mengirimkannya via DM Pribadi.
     """
     try:
         channel_id = event.get("channel", "")
@@ -350,10 +364,6 @@ def handle_smart_copilot_ghostwriter(
             pass
 
         # 1. Deteksi apakah ada Pilot Executive yang di-mention
-        # CATATAN SILENT DROP (Aturan 2.B):
-        # Kami HANYA memproses target yang ada di PILOT_EXECUTIVES, dan di bawah ini wajib diverifikasi
-        # keanggotaan channelnya via `verify_user_channel_membership`.
-        # Jika ada staf biasa disebut/di-tag di channel tertutup (#leadership), fungsi ini 100% DIAM TOTAL (Silent Drop).
         mentioned_execs = detect_executive_mentions(text, sender_id=sender_id)
         if not mentioned_execs:
             return
@@ -385,7 +395,6 @@ def handle_smart_copilot_ghostwriter(
             exec_role = exec_prof["role"]
 
             # 2. ATURAN ZERO-TRUST & SILENT DROP (Mention Boundary):
-            # Pastikan Direksi/CorpSec yang di-mention benar-benar anggota resmi channel tempat pesan dikirim!
             if not verify_user_channel_membership(client, exec_uid, channel_id):
                 logger.info(
                     f"[SILENT DROP] {exec_short} ({exec_uid}) di-mention di #{ch_name} ({channel_id}), "
@@ -406,10 +415,10 @@ def handle_smart_copilot_ghostwriter(
 
             _COPILOT_COOLDOWN[cooldown_key] = now
 
-            # 4. Cari materi relevan di Knowledge Base CDPK HQ sesuai role eksekutif
+            # 4. Cari materi relevan di Knowledge Base CDPK HQ (top_k=3 agar tajam & hemat token)
             clean_q = re.sub(r"<@[A-Z0-9]+>", "", text).strip()
             kb_level = "DIREKSI" if exec_role == "DIREKSI" else "STANDARD"
-            kb_context = retrieve_kb_fn(clean_q, user_level=kb_level, top_k=5, user_name=exec_prof["name"]) if retrieve_kb_fn else ""
+            kb_context = retrieve_kb_fn(clean_q, user_level=kb_level, top_k=3, user_name=exec_prof["name"]) if retrieve_kb_fn else ""
 
             # Ambil sedikit konteks thread jika berada di dalam thread
             thread_snippet = ""
@@ -448,16 +457,30 @@ def handle_smart_copilot_ghostwriter(
                 f"2. ✍️ *Draf Balasan Siap Salin untuk {exec_short}* (dalam block quote `>` agar mudah disalin)"
             )
 
-            ai_draft = ask_grok_fn(
-                [
-                    {"role": "system", "content": copilot_system_prompt},
-                    {"role": "user", "content": user_prompt}
-                ],
-                client=client,
-                channel=None,  # Jangan unggah file otomatis ke channel publik
-                thread_ts=None,
-                user_id=exec_uid
-            )
+            # Safe Mode Optimization: gunakan enable_tools=False karena Ghostwriter hanya menyusun teks draf
+            try:
+                ai_draft = ask_grok_fn(
+                    [
+                        {"role": "system", "content": copilot_system_prompt},
+                        {"role": "user", "content": user_prompt}
+                    ],
+                    client=client,
+                    channel=None,
+                    thread_ts=None,
+                    user_id=exec_uid,
+                    enable_tools=False
+                )
+            except TypeError:
+                ai_draft = ask_grok_fn(
+                    [
+                        {"role": "system", "content": copilot_system_prompt},
+                        {"role": "user", "content": user_prompt}
+                    ],
+                    client=client,
+                    channel=None,
+                    thread_ts=None,
+                    user_id=exec_uid
+                )
 
             link_line = f"🔗 *Tautan Pesan Langsung:* <{permalink}|Klik untuk membuka percakapan di #{ch_name}>\n" if permalink else ""
             dm_message = (
@@ -472,7 +495,6 @@ def handle_smart_copilot_ghostwriter(
                 f"💡 _Pesan ini dikirim secara privat (1-on-1 DM) khusus untuk Anda. Grok tidak membalas di channel publik._"
             )
 
-            # Kirim via DM Pribadi ke Direksi yang di-mention
             try:
                 im_res = client.conversations_open(users=exec_uid)
                 dm_cid = im_res.get("channel", {}).get("id") or exec_uid
@@ -486,13 +508,13 @@ def handle_smart_copilot_ghostwriter(
 
 
 # ==============================================================================
-# TAHAP 2: SCHEDULE READER (0 TOKEN PYTHON PARSER) & PROACTIVE REMINDER (07:45 WIB)
+# TAHAP 2: SCHEDULE READER (0 TOKEN PYTHON PARSER) & PROACTIVE REMINDER
 # ==============================================================================
 def parse_local_schedules_zero_token(target_user_id: Optional[str] = None) -> Dict[str, List[Dict[str, Any]]]:
     """
     Membaca jadwal agenda/meeting/pengingat Direksi menggunakan murni parsing Python lokal (0 Token API):
     1. Dari `reminders.json` (jadwal meeting/agenda aktif yang terdaftar di sistem).
-    2. Dari file jadwal/agenda di folder `knowledge/` (jadwal rutin mingguan & agenda kegiatan).
+    2. Dari aturan kalender agenda rutin mingguan CDPK HQ.
     """
     now = get_now_wib()
     today_date = now.date()
@@ -514,7 +536,6 @@ def parse_local_schedules_zero_token(target_user_id: Optional[str] = None) -> Di
                 target_str = str(r.get("target", "")).lower()
                 creator_id = r.get("creator_id", "")
 
-                # Filter apakah relevan untuk Direksi target (atau untuk semua/tim/channel)
                 if target_user_id:
                     exec_prof = PILOT_EXECUTIVES.get(target_user_id, {})
                     aliases = exec_prof.get("aliases", [])
@@ -539,7 +560,6 @@ def parse_local_schedules_zero_token(target_user_id: Optional[str] = None) -> Di
                 if due_dt.date() == today_date:
                     active_today.append(item)
 
-                # Cek apakah jatuh dalam 15 - 30 menit ke depan (900 - 1800 detik)
                 diff_sec = due_ts - now.timestamp()
                 if 600 <= diff_sec <= 1860:
                     upcoming_soon.append(item)
@@ -567,7 +587,6 @@ def parse_local_schedules_zero_token(target_user_id: Optional[str] = None) -> Di
             "source": "Agenda Rutin Mingguan CDPK HQ"
         })
 
-    # Cek apakah agenda rutin masuk jendela 15-30 menit ke depan
     for ag in active_today:
         if str(ag.get("id", "")).startswith("routine_"):
             diff_sec = ag["due_timestamp"] - now.timestamp()
@@ -576,50 +595,6 @@ def parse_local_schedules_zero_token(target_user_id: Optional[str] = None) -> Di
 
     active_today.sort(key=lambda x: x.get("due_timestamp", 0))
     return {"today": active_today, "upcoming_soon": upcoming_soon}
-
-
-def send_morning_executive_briefing(client, target_only_uid: Optional[str] = None):
-    """
-    TAHAP 2 (Morning Executive Briefing jam 07:45 WIB — 0 Token Local Python):
-    Mengirimkan jadwal agenda/meeting hari ini dan status kesiapan operasional ke DM jajaran Direksi & Corp Secretary.
-    """
-    now = get_now_wib()
-    day_names = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"]
-    day_str = f"{day_names[now.weekday()]}, {now.strftime('%d %B %Y')}"
-
-    targets = {target_only_uid: PILOT_EXECUTIVES[target_only_uid]} if (target_only_uid and target_only_uid in PILOT_EXECUTIVES) else PILOT_EXECUTIVES
-
-    for exec_uid, prof in targets.items():
-        try:
-            sched = parse_local_schedules_zero_token(target_user_id=exec_uid)
-            today_items = sched.get("today", [])
-
-            if today_items:
-                agenda_lines = []
-                for idx, it in enumerate(today_items, 1):
-                    agenda_lines.append(f"• *{idx}. [{it['time_str']}]* {it['title']} _({it['source']})_")
-                agenda_block = "\n".join(agenda_lines)
-            else:
-                agenda_block = "• _Belum ada jadwal rapat/agenda spesifik yang tercatat untuk pagi ini. Anda dapat menjadwalkan agenda kapan saja melalui DM ini (contoh: \"Ingatkan saya meeting jam 14:00 WIB\")._"
-
-            briefing_text = (
-                f"☀️ *[MORNING EXECUTIVE BRIEFING — CDPK HQ]*\n"
-                f"Selamat pagi, *{prof['short_name']}*! Berikut adalah ringkasan jadwal & kesiapan agenda Anda untuk *{day_str}*:\n\n"
-                f"📅 *JADWAL & AGENDA HARI INI:*\n"
-                f"{agenda_block}\n\n"
-                f"🛡️ *STATUS SISTEM CO-PILOT:*\n"
-                f"• *Smart Ghostwriter:* Aktif (Siap mengirimkan draf jawaban ke DM Anda jika Anda di-mention di channel)\n"
-                f"• *Proactive Reminder:* Aktif (Notifikasi otomatis 15–30 menit sebelum agenda dimulai)\n"
-                f"• *End-of-Day Digest:* Terjadwal pukul 17:30 WIB sore ini\n\n"
-                f"Selamat beraktivitas dan semoga hari Anda produktif! 🚀"
-            )
-
-            im_res = client.conversations_open(users=exec_uid)
-            dm_cid = im_res.get("channel", {}).get("id") or exec_uid
-            client.chat_postMessage(channel=dm_cid, text=briefing_text, mrkdwn=True)
-            logger.info(f"[MORNING BRIEFING] Berhasil dikirim ke {prof['short_name']} ({exec_uid})")
-        except Exception as e:
-            logger.error(f"Gagal mengirim Morning Briefing ke {exec_uid}: {e}")
 
 
 def check_and_send_proactive_meeting_reminders(client):
@@ -654,20 +629,25 @@ def check_and_send_proactive_meeting_reminders(client):
 
 
 # ==============================================================================
-# TAHAP 3: END-OF-DAY DIGEST (JAM 17:30 WIB — ZERO-TRUST FILTERED PER EXECUTIVE)
+# TAHAP 2 & 3 TERPADU: 3X DAILY INCREMENTAL TIME-WINDOW & PER-CHANNEL CACHING
+# (09:00 WIB Morning Kick-Off, 13:30 WIB Mid-Day Pulse, 18:00 WIB EOD Digest)
 # ==============================================================================
-def send_end_of_day_digest(client, ask_grok_fn=None, target_only_uid: Optional[str] = None):
+def _collect_and_summarize_channels_once(
+    client,
+    oldest_ts: float,
+    latest_ts: float,
+    window_label: str,
+    ask_grok_fn=None
+) -> Dict[str, str]:
     """
-    TAHAP 3 (End-of-Day Digest jam 17:30 WIB):
-    Mengirimkan ringkasan diskusi harian dan pending action items ke DM masing-masing Direksi.
-    WAJIB MEMATUHI ZERO-TRUST MEMBERSHIP: Setiap Direksi HANYA menerima ringkasan dari channel
-    yang mana beliau adalah anggota resminya (`verify_user_channel_membership`).
+    PER-CHANNEL CACHING & SMART IDLE SKIP:
+    1. Mengambil pesan dari setiap channel tempat bot berada HANYA dalam rentang waktu [oldest_ts, latest_ts].
+    2. Jika suatu channel tidak memiliki diskusi baru di jendela waktu tersebut -> 0 Token (dilewati).
+    3. Jika suatu channel memiliki diskusi aktif -> Diringkas cukup 1 KALI SAJA oleh Grok (dengan `enable_tools=False`),
+       lalu hasil ringkasannya disimpan di dictionary `channel_summaries[channel_id]` untuk didistribusikan ke
+       5 Eksekutif sesuai hak keanggotaan masing-masing (`verify_user_channel_membership`).
+       Menghemat >80% kuota token API dibanding memanggil AI 5 kali untuk channel yang sama!
     """
-    now = get_now_wib()
-    start_of_day_ts = now.replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
-    date_label = now.strftime("%d %B %Y")
-
-    # 1. Kumpulkan aktivitas pesan hari ini dari semua channel tempat bot berada
     ch_map = get_workspace_channels_map(client)
     bot_channels = []
     seen_cids = set()
@@ -677,18 +657,25 @@ def send_end_of_day_digest(client, ask_grok_fn=None, target_only_uid: Optional[s
             seen_cids.add(cid)
             bot_channels.append(meta)
 
-    channel_messages_today: Dict[str, List[str]] = {}
     bot_uid = ""
     try:
         bot_uid = client.auth_test().get("user_id", "")
     except Exception:
         pass
 
+    channel_summaries: Dict[str, str] = {}
+
     for ch in bot_channels:
         cid = ch["id"]
         cname = ch["name"]
         try:
-            h_res = client.conversations_history(channel=cid, oldest=str(start_of_day_ts), limit=40)
+            h_res = client.conversations_history(
+                channel=cid,
+                oldest=str(oldest_ts),
+                latest=str(latest_ts),
+                inclusive=True,
+                limit=35
+            )
             msgs = h_res.get("messages", [])
             cleaned_lines = []
             for m in reversed(msgs):
@@ -697,75 +684,150 @@ def send_end_of_day_digest(client, ask_grok_fn=None, target_only_uid: Optional[s
                 txt = re.sub(r"<@[A-Z0-9]+>", "", m.get("text", "")).strip()
                 if len(txt) >= 10:
                     cleaned_lines.append(f"- {txt[:200]}")
-            if cleaned_lines:
-                channel_messages_today[cid] = cleaned_lines[-12:]
-        except Exception as e:
-            logger.debug(f"Gagal membaca history harian untuk #{cname} ({cid}): {e}")
 
-    # 2. Susun dan kirimkan EOD Digest untuk masing-masing Pilot Executive sesuai keanggotaan channelnya
-    targets = {target_only_uid: PILOT_EXECUTIVES[target_only_uid]} if (target_only_uid and target_only_uid in PILOT_EXECUTIVES) else PILOT_EXECUTIVES
-    for exec_uid, prof in targets.items():
-        try:
-            allowed_summaries = []
-            for ch in bot_channels:
-                cid = ch["id"]
-                cname = ch["name"]
-                if cid not in channel_messages_today:
-                    continue
-                # ZERO-TRUST CHECK: Hanya sertakan channel jika eksekutif ini adalah anggota resminya!
-                if not verify_user_channel_membership(client, exec_uid, cid):
-                    continue
-                lines = channel_messages_today[cid]
-                allowed_summaries.append(f"*#{cname}* ({len(lines)} pesan aktif):\n" + "\n".join(lines[:6]))
+            if not cleaned_lines:
+                continue
 
-            # Ambil pending reminders untuk eksekutif ini
-            sched = parse_local_schedules_zero_token(target_user_id=exec_uid)
-            pending_rems = sched.get("today", [])
-            rem_lines = [f"• [{r['time_str']}] {r['title']}" for r in pending_rems] if pending_rems else ["• _Tidak ada pending reminder yang tertunda._"]
+            recent_lines = cleaned_lines[-10:]
+            raw_snippet = "\n".join(recent_lines)
 
-            if allowed_summaries and ask_grok_fn:
-                raw_digest_input = "\n\n".join(allowed_summaries)
-                eod_prompt = [
+            # Jika hanya ada 1-2 pesan pendek atau tidak ada ask_grok_fn, format langsung dengan Python (0 Token!)
+            if len(recent_lines) <= 2 or not ask_grok_fn:
+                channel_summaries[cid] = f"• *#{cname}* ({len(cleaned_lines)} pesan):\n" + "\n".join(f"  {l}" for l in recent_lines)
+            else:
+                # Rangkum 1 kali saja per channel aktif menggunakan Grok (enable_tools=False)
+                prompt = [
                     {
                         "role": "system",
                         "content": (
-                            f"Anda adalah Executive AI Co-Pilot CDPK HQ untuk {prof['name']} ({prof['title']}). "
-                            "Buat ringkasan eksekutif sore hari (End-of-Day Digest) yang sangat padat, rapi, dan fokus pada: "
-                            "(1) Poin Diskusi Utama per Saluran, dan (2) Pending Action Items / Tindak Lanjut. "
-                            "Gunakan format Slack mrkdwn (*bold* satu bintang, bullet •, tanpa tabel pipa)."
+                            f"Ringkas diskusi dari channel #{cname} ({window_label}) berikut menjadi 2-3 poin bullet singkat "
+                            "beserta Action Item (jika ada). Gunakan format Slack mrkdwn (*bold* satu bintang, tanpa tabel pipa)."
                         )
                     },
                     {
                         "role": "user",
-                        "content": f"Berikut aktivitas diskusi hari ini ({date_label}) di saluran yang diikuti {prof['short_name']}:\n\n{raw_digest_input}"
+                        "content": raw_snippet
                     }
                 ]
-                ai_summary = ask_grok_fn(eod_prompt, client=client, channel=None, thread_ts=None, user_id=exec_uid)
-            elif allowed_summaries:
-                ai_summary = "\n\n".join(allowed_summaries)
-            else:
-                ai_summary = "• _Hari ini tidak terdapat diskusi baru yang memerlukan tindak lanjut mendesak di saluran yang Anda ikuti._"
+                try:
+                    ch_sum = ask_grok_fn(prompt, client=client, channel=None, thread_ts=None, user_id=None, enable_tools=False)
+                except TypeError:
+                    ch_sum = ask_grok_fn(prompt, client=client, channel=None, thread_ts=None, user_id=None)
+                channel_summaries[cid] = f"📌 *Saluran #{cname}* ({len(cleaned_lines)} pesan aktif):\n{ch_sum.strip()}"
+        except Exception as e:
+            logger.debug(f"Gagal memproses incremental history untuk #{cname} ({cid}): {e}")
 
-            eod_text = (
-                f"🌇 *[END-OF-DAY EXECUTIVE DIGEST — {date_label}]*\n"
-                f"Selamat sore, *{prof['short_name']}*! Berikut adalah rangkuman diskusi harian & tindak lanjut dari saluran resmi yang Anda ikuti:\n\n"
-                f"📊 *RINGKASAN DISKUSI & ACTION ITEMS HARI INI:*\n"
-                f"{ai_summary}\n\n"
-                f"⏰ *STATUS AGENDA & PENGINGAT HARI INI:*\n"
-                + "\n".join(rem_lines)
-                + "\n\n_Selamat beristirahat! Grok CDPK tetap siaga 24/7 mendampingi Anda._ 🙏"
+    return channel_summaries
+
+
+def send_scheduled_executive_digest(
+    client,
+    slot: str = "morning",
+    ask_grok_fn=None,
+    target_only_uid: Optional[str] = None
+):
+    """
+    Mengirimkan Executive Briefing & Digest pada 3 jadwal harian dengan Incremental Time-Window & Per-Channel Caching:
+    - `slot="morning"` (09:00 WIB): Morning Kick-Off, Jadwal Hari Ini (0 Token) + Update Pagi (00:00 - 09:00 WIB).
+    - `slot="midday"`  (13:30 WIB): Mid-Day Executive Pulse, Rekap Diskusi Sesi Pagi (09:00 - 13:30 WIB) + Agenda Siang/Sore.
+    - `slot="eod"`     (18:00 WIB): End-of-Day Executive Digest, Rekap Diskusi Sesi Siang-Sore (13:30 - 18:00 WIB) & Action Items.
+    """
+    now = get_now_wib()
+    day_names = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"]
+    day_str = f"{day_names[now.weekday()]}, {now.strftime('%d %B %Y')}"
+
+    start_00 = now.replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
+    start_09 = now.replace(hour=9, minute=0, second=0, microsecond=0).timestamp()
+    start_1330 = now.replace(hour=13, minute=30, second=0, microsecond=0).timestamp()
+    now_ts = now.timestamp()
+
+    # Tentukan Incremental Time-Window berdasarkan slot (dan fallback cerdas jika diuji on-demand di luar jamnya)
+    if slot == "morning":
+        oldest_ts = start_00
+        latest_ts = now_ts
+        window_label = "Sesi Pagi (00:00 – 09:00 WIB)"
+        header_title = f"☀️ *[MORNING EXECUTIVE BRIEFING & KICK-OFF — 09:00 WIB]*"
+        greeting_word = "Selamat pagi"
+    elif slot == "midday":
+        oldest_ts = start_09 if now_ts > start_09 else start_00
+        latest_ts = now_ts
+        window_label = "Sesi Pagi – Siang (09:00 – 13:30 WIB)"
+        header_title = f"🕜 *[MID-DAY EXECUTIVE PULSE — 13:30 WIB]*"
+        greeting_word = "Selamat siang"
+    else:  # eod (18:00 WIB)
+        oldest_ts = start_1330 if now_ts > start_1330 else start_00
+        latest_ts = now_ts
+        window_label = "Sesi Siang – Sore (13:30 – 18:00 WIB)" if now_ts > start_1330 else "Hari Ini"
+        header_title = f"🌇 *[END-OF-DAY EXECUTIVE DIGEST — 18:00 WIB]*"
+        greeting_word = "Selamat sore"
+
+    # 1. Rangkum setiap channel aktif CUKUP 1 KALI SAJA (Per-Channel Caching)
+    per_channel_cache = _collect_and_summarize_channels_once(
+        client=client,
+        oldest_ts=oldest_ts,
+        latest_ts=latest_ts,
+        window_label=window_label,
+        ask_grok_fn=ask_grok_fn
+    )
+
+    # 2. Distribusikan ke masing-masing Pilot Executive dengan filter Zero-Trust Channel Membership
+    targets = {target_only_uid: PILOT_EXECUTIVES[target_only_uid]} if (target_only_uid and target_only_uid in PILOT_EXECUTIVES) else PILOT_EXECUTIVES
+
+    for exec_uid, prof in targets.items():
+        try:
+            # Filter channel yang diikuti secara resmi oleh eksekutif ini
+            allowed_ch_blocks = []
+            for cid, summary_text in per_channel_cache.items():
+                if verify_user_channel_membership(client, exec_uid, cid):
+                    allowed_ch_blocks.append(summary_text)
+
+            if allowed_ch_blocks:
+                discussion_section = "\n\n".join(allowed_ch_blocks)
+            else:
+                discussion_section = f"• _Belum terdapat diskusi baru yang memerlukan tindak lanjut pada rentang {window_label} di saluran yang Anda ikuti._"
+
+            # Ambil jadwal agenda & pengingat lokal (0 Token Python Parser)
+            sched = parse_local_schedules_zero_token(target_user_id=exec_uid)
+            today_items = sched.get("today", [])
+            if today_items:
+                agenda_lines = [f"• *[{it['time_str']}]* {it['title']} _({it['source']})_" for it in today_items]
+                agenda_section = "\n".join(agenda_lines)
+            else:
+                agenda_section = "• _Tidak ada jadwal rapat/pengingat aktif yang tertunda untuk hari ini._"
+
+            msg_text = (
+                f"{header_title}\n"
+                f"{greeting_word}, *{prof['short_name']}*! Berikut adalah laporan berkala & kesiapan agenda Anda untuk *{day_str}*:\n\n"
+                f"📊 *REKAP DISKUSI SALURAN ({window_label}):*\n"
+                f"{discussion_section}\n\n"
+                f"📅 *JADWAL AGENDA & PENGINGAT HARI INI:*\n"
+                f"{agenda_section}\n\n"
+                f"🛡️ _Jadwal Rekap Otomatis: 09:00 WIB (Pagi) • 13:30 WIB (Siang) • 18:00 WIB (Sore) | Zero-Trust Filtered_"
             )
 
             im_res = client.conversations_open(users=exec_uid)
             dm_cid = im_res.get("channel", {}).get("id") or exec_uid
-            client.chat_postMessage(channel=dm_cid, text=eod_text, mrkdwn=True)
-            logger.info(f"[EOD DIGEST] Berhasil dikirim ke {prof['short_name']} ({exec_uid})")
+            client.chat_postMessage(channel=dm_cid, text=msg_text, mrkdwn=True)
+            logger.info(f"[EXECUTIVE DIGEST - {slot.upper()}] Berhasil dikirim ke {prof['short_name']} ({exec_uid})")
         except Exception as e:
-            logger.error(f"Gagal mengirim EOD Digest ke {exec_uid}: {e}")
+            logger.error(f"Gagal mengirim Executive Digest ({slot}) ke {exec_uid}: {e}")
+
+
+# Wrapper kompatibilitas untuk pemanggilan on-demand
+def send_morning_executive_briefing(client, ask_grok_fn=None, target_only_uid: Optional[str] = None):
+    send_scheduled_executive_digest(client, slot="morning", ask_grok_fn=ask_grok_fn, target_only_uid=target_only_uid)
+
+
+def send_midday_executive_digest(client, ask_grok_fn=None, target_only_uid: Optional[str] = None):
+    send_scheduled_executive_digest(client, slot="midday", ask_grok_fn=ask_grok_fn, target_only_uid=target_only_uid)
+
+
+def send_end_of_day_digest(client, ask_grok_fn=None, target_only_uid: Optional[str] = None):
+    send_scheduled_executive_digest(client, slot="eod", ask_grok_fn=ask_grok_fn, target_only_uid=target_only_uid)
 
 
 # ==============================================================================
-# BACKGROUND SCHEDULER WORKER (07:45 WIB, 17:30 WIB, & PROACTIVE 15-30 MIN)
+# BACKGROUND SCHEDULER WORKER (09:00, 13:30, 18:00 WIB & PROACTIVE 15-30 MIN)
 # ==============================================================================
 def _load_scheduler_state() -> Dict[str, str]:
     with _SCHEDULER_LOCK:
@@ -789,7 +851,7 @@ def _save_scheduler_state(state: Dict[str, str]):
 
 
 def _copilot_scheduler_loop(client, ask_grok_fn=None):
-    logger.info("Executive Co-Pilot Scheduler (Tahap 2 & Tahap 3) aktif dan berjalan 24/7...")
+    logger.info("Executive Co-Pilot Scheduler (09:00, 13:30, 18:00 WIB & Proactive Reminder) aktif 24/7...")
     while True:
         try:
             now = get_now_wib()
@@ -798,19 +860,25 @@ def _copilot_scheduler_loop(client, ask_grok_fn=None):
 
             state = _load_scheduler_state()
 
-            # 1. Morning Executive Briefing setiap pukul 07:45 WIB (Senin - Sabtu)
-            if hh_mm == "07:45" and state.get("last_morning_briefing") != today_str:
-                state["last_morning_briefing"] = today_str
+            # 1. Sesi Pagi (09:00 WIB): Morning Executive Briefing & Kick-Off
+            if hh_mm == "09:00" and state.get("last_morning_0900") != today_str:
+                state["last_morning_0900"] = today_str
                 _save_scheduler_state(state)
-                send_morning_executive_briefing(client)
+                send_scheduled_executive_digest(client, slot="morning", ask_grok_fn=ask_grok_fn)
 
-            # 2. End-of-Day Digest setiap pukul 17:30 WIB (Senin - Sabtu)
-            if hh_mm == "17:30" and state.get("last_eod_digest") != today_str:
-                state["last_eod_digest"] = today_str
+            # 2. Sesi Siang (13:30 WIB): Mid-Day Executive Pulse (Rekap 09:00 - 13:30 WIB)
+            if hh_mm == "13:30" and state.get("last_midday_1330") != today_str:
+                state["last_midday_1330"] = today_str
                 _save_scheduler_state(state)
-                send_end_of_day_digest(client, ask_grok_fn=ask_grok_fn)
+                send_scheduled_executive_digest(client, slot="midday", ask_grok_fn=ask_grok_fn)
 
-            # 3. Proactive Meeting Reminder (15 - 30 menit sebelum agenda)
+            # 3. Sesi Sore (18:00 WIB): End-of-Day Executive Digest (Rekap 13:30 - 18:00 WIB)
+            if hh_mm == "18:00" and state.get("last_eod_1800") != today_str:
+                state["last_eod_1800"] = today_str
+                _save_scheduler_state(state)
+                send_scheduled_executive_digest(client, slot="eod", ask_grok_fn=ask_grok_fn)
+
+            # 4. Proactive Meeting Reminder (15 - 30 menit sebelum agenda)
             check_and_send_proactive_meeting_reminders(client)
 
         except Exception as e:
@@ -820,7 +888,7 @@ def _copilot_scheduler_loop(client, ask_grok_fn=None):
 
 
 def start_copilot_worker(client, ask_grok_fn=None):
-    """Menjalankan background worker Co-Pilot (Morning Briefing 07:45, Proactive Reminder, & EOD Digest 17:30)."""
+    """Menjalankan background worker Co-Pilot (09:00, 13:30, 18:00 WIB & Proactive Reminder)."""
     global _COPILOT_WORKER_STARTED
     if not _COPILOT_WORKER_STARTED:
         _COPILOT_WORKER_STARTED = True

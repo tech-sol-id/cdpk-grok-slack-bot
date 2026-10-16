@@ -31,6 +31,7 @@ from copilot_engine import (
     check_cross_channel_access_guard,
     handle_smart_copilot_ghostwriter,
     send_morning_executive_briefing,
+    send_midday_executive_digest,
     send_end_of_day_digest,
     start_copilot_worker,
 )
@@ -341,19 +342,21 @@ def format_slack_text(text: str) -> str:
 
     return text
 
-def ask_grok(messages: list, client=None, channel: str = None, thread_ts: str = None, user_id: str = None) -> str:
-    """Mengirim pesan ke xAI Grok API dengan dukungan Tool Calling untuk Dokumen & Reminder."""
+def ask_grok(messages: list, client=None, channel: str = None, thread_ts: str = None, user_id: str = None, enable_tools: bool = True) -> str:
+    """Mengirim pesan ke xAI Grok API dengan dukungan Tool Calling untuk Dokumen & Reminder (bisa dinonaktifkan untuk background digest/copilot agar hemat token)."""
     try:
         response = None
         for attempt in range(3):
             try:
-                response = ai_client.chat.completions.create(
-                    model=XAI_MODEL,
-                    messages=messages,
-                    tools=ALL_TOOLS,
-                    tool_choice="auto",
-                    temperature=0.7,
-                )
+                api_kwargs = {
+                    "model": XAI_MODEL,
+                    "messages": messages,
+                    "temperature": 0.7,
+                }
+                if enable_tools:
+                    api_kwargs["tools"] = ALL_TOOLS
+                    api_kwargs["tool_choice"] = "auto"
+                response = ai_client.chat.completions.create(**api_kwargs)
                 break
             except Exception as e:
                 if "429" in str(e) or "capacity" in str(e).lower():
@@ -567,12 +570,29 @@ def extract_smart_snippet(content: str, query_tokens: list, max_length: int = 75
     else:
         return f"{header}\n\n[... bagian dokumen sebelumnya dilewati ...]\n\n{content[start_pos:end_pos]}"
 
-def retrieve_relevant_knowledge(query: str, user_level: str = "STANDARD", top_k: int = 8, user_name: str = "") -> str:
+def retrieve_relevant_knowledge(query: str, user_level: str = "STANDARD", top_k: int = 5, user_name: str = "") -> str:
     """Mencari dokumen paling relevan dengan pertanyaan pengguna berdasarkan hak akses:
     - DIREKSI: mencari di subfolder umum, finance, dan direksi.
     - FINANCE: mencari di subfolder umum dan finance.
     - STANDARD: hanya mencari di subfolder umum.
+    Menggunakan Safe Mode Adaptive Tiering (top_k=5: Dokumen #1-#2 hingga 6500 char, Dokumen #3-#5 hingga 2500 char, tabel gaji/karyawan tetap 100% utuh).
     """
+    if not query or not query.strip():
+        return ""
+
+    # Normalisasi teks query (contoh i.safe, i-safe -> isafe)
+    cleaned_query = query.lower().strip()
+    cleaned_query = re.sub(r'i[\.\-_ ]safe', 'isafe', cleaned_query)
+
+    # Zero-KB untuk sapaan singkat murni (hemat 5.000 karakter tanpa mengurangi kecerdasan)
+    pure_greetings = {
+        "halo", "hai", "hi", "hello", "pagi", "selamat pagi", "siang", "selamat siang",
+        "sore", "selamat sore", "malam", "selamat malam", "tes", "test", "ping",
+        "terima kasih", "makasih", "thanks", "thank you", "ok", "oke", "siap"
+    }
+    if cleaned_query.rstrip(".!,?") in pure_greetings:
+        return ""
+
     knowledge_dir = os.path.join(os.path.dirname(__file__), "knowledge")
     if not os.path.exists(knowledge_dir):
         return ""
@@ -583,10 +603,6 @@ def retrieve_relevant_knowledge(query: str, user_level: str = "STANDARD", top_k:
         allowed_subfolders = {"umum", "finance"}
     else:
         allowed_subfolders = {"umum"}
-
-    # Normalisasi teks query (contoh i.safe, i-safe -> isafe)
-    cleaned_query = query.lower()
-    cleaned_query = re.sub(r'i[\.\-_ ]safe', 'isafe', cleaned_query)
 
     raw_tokens = [t.lower() for t in re.findall(r'[a-zA-Z0-9]+', cleaned_query) if len(t) >= 2]
     stop_words = {
@@ -750,8 +766,7 @@ def retrieve_relevant_knowledge(query: str, user_level: str = "STANDARD", top_k:
 
                 if score > 0:
                     category = first_segment.upper() if first_segment != "." else "UMUM"
-                    snippet = extract_smart_snippet(content, expanded_tokens + product_codes, max_length=7500)
-                    scored_docs.append((score, file, category, snippet))
+                    scored_docs.append((score, file, category, content))
             except Exception as e:
                 logger.warning(f"Gagal membaca file .md {file}: {e}")
 
@@ -759,17 +774,16 @@ def retrieve_relevant_knowledge(query: str, user_level: str = "STANDARD", top_k:
     top_docs = scored_docs[:top_k]
 
     if not top_docs:
-        overview_path = os.path.join(knowledge_dir, "umum", "cdpk_overview.md")
-        if os.path.exists(overview_path):
-            try:
-                with open(overview_path, "r", encoding="utf-8", errors="ignore") as f:
-                    return f"### DOKUMEN [UMUM]: cdpk_overview.md\n{f.read()[:5000]}"
-            except Exception:
-                pass
         return ""
 
     docs_formatted = []
-    for _, fname, cat, snippet in top_docs:
+    all_match_tokens = expanded_tokens + product_codes
+    for rank_idx, (_, fname, cat, raw_content) in enumerate(top_docs):
+        # Safe Mode Adaptive Tiering:
+        # Dokumen peringkat #1 & #2 mendapat alokasi penuh (6.500 char; atau 100% utuh jika tabel karyawan/gaji)
+        # Dokumen pendukung peringkat #3 - #5 mendapat alokasi fokus (2.500 char)
+        tier_max_len = 6500 if rank_idx < 2 else 2500
+        snippet = extract_smart_snippet(raw_content, all_match_tokens, max_length=tier_max_len)
         docs_formatted.append(f"### DOKUMEN [{cat}]: {fname}\n{snippet}")
 
     return "\n\n---\n\n".join(docs_formatted)
@@ -1234,52 +1248,38 @@ def get_effective_system_prompt(user_access: dict = None, query: str = "", chann
         "     * Gunakan parameter 'account': 'citradata' (default), 'techsolutions', atau 'all' untuk mencari di kedua organisasi CDPK HQ.\n"
         "   - PEMBACAAN ISI DOKUMEN/SPREADSHEET ('read_google_drive_file'):\n"
         "     * Panggil tool ini HANYA JIKA pengguna secara spesifik meminta Anda membaca, menganalisis, merangkum, atau mengecek isi data di dalam berkas/spreadsheet/PDF tersebut.\n"
-        "     * Jangan panggil tool ini jika pengguna hanya ingin mencari letak berkas atau link dokumennya.\n"
-        "   - TAUTAN GOOGLE DRIVE LANGSUNG: Selalu sertakan link clickable `<URL|Nama File>` yang diperoleh dari hasil pencarian agar tim dapat langsung membuka dokumen tersebut di browser Slack dengan sekali klik.\n"
-        "   - MEKANISME HEMAT TOKEN (TOKEN-GUARD): Hasil pencarian Drive hanya mengembalikan metadata ringkas (~150-250 token). Pembacaan file Google Spreadsheet/Doc/PDF dipangkas ketat maksimal 1.800 karakter (~350-400 token) sehingga tidak menguras kuota token API.\n"
-        "13. PERMINTAAN GAJI, PENGGAJIAN & DATA PRIBADI DIREKSI/KARYAWAN:\n"
-        "   - Jika penanya adalah Direksi (seperti Adrian Bany Kansil / Pak Adrian) dan menanyakan gaji, tunjangan, THP, atau data pribadi ('berapa gaji saya?', 'minta data salary', 'data diri saya'):\n"
-        "     * Anda WAJIB memeriksa data nama penanya (contoh: Adrian Bany Kansil) di dalam dokumen 'rekap_gaji_2026.md' dan 'employee_analysis.md' pada Basis Pengetahuan Resmi CDPK HQ di bawah.\n"
-        "     * Sajikan secara rinci, transparan, dan terstruktur rapi:\n"
-        "       • Nama & NIP: Adrian Bany Kansil (NIP: 82112024)\n"
-        "       • Jabatan & Divisi: Vice Director (Management CDPK)\n"
-        "       • Gaji Pokok (Basic Salary): Rp 14.310.708\n"
-        "       • Tunjangan Jabatan: Rp 35.600.000\n"
-        "       • Tunjangan Makan & Transport: Rp 19.709.543 (Makan: Rp 11.825.726, Transport: Rp 7.883.817)\n"
-        "       • Total Allowance (Tunjangan): Rp 55.309.543\n"
-        "       • Gaji Bruto: Rp 68.122.372\n"
-        "       • Potongan PPh 21: Rp 14.794.234 | Potongan JHT/BPJS: Rp 1.497.879\n"
-        "       • Take Home Pay (THP) Bersih: Rp 53.328.138\n"
-        "       • Rekening Penyaluran: BCA 6030210300 a.n. Adrian Bany Kansil\n"
-        "     * Terkait DATA ABSENSI / KEHADIRAN KARYAWAN:\n"
-        "       • Jelaskan bahwa pencatatan kehadiran operasional harian terpusat di sistem cloud Mekari Talenta (dan dokumen bukti/URD Talenta di Google Drive).\n"
-        "       • Sedangkan rekapitulasi potongan keterlambatan, ketidakhadiran, sakit, dan izin tercatat secara bulanan di dalam rekapitulasi penggajian (rekap_gaji_2026.md).\n"
-        "     * Terkait DATA KARYAWAN & PEGAWAI (seperti NIP, NIK, Jabatan, Status Kepegawaian):\n"
-        "       • Jika ditanyakan di ruang aman (Direct Message pribadi atau #leadership), Anda WAJIB memeriksa dokumen 'employee_analysis.md' dan 'rekap_gaji_2026.md' pada Basis Pengetahuan Resmi di bawah.\n"
-        "       • Contoh: Data Teguh Yuliarto (Pak Teguh) -> NIP: 23092014, Jabatan: Administration and Tax Staff (Finance and Accounting), Lokasi: Pinangsia, Masuk Kerja: 1/9/2014, Status: Karyawan Tetap.\n"
-        "       • Sajikan informasi secara jelas, terstruktur rapi, dan akurat sesuai data yang tercatat.\n"
-        "     * DILARANG KERAS menyatakan 'informasi arsip tidak ditemukan' apabila baris nama atau dokumen tersebut ada di dalam Basis Pengetahuan Resmi di bawah ini!\n"
-        "14. KEMAMPUAN MULTIBAHASA & PENERJEMAHAN (INDONESIA ↔ ENGLISH ↔ MANDARIN 中文):\n"
-        "   - ADAPTIVE LANGUAGE MATCHING:\n"
-        "     * Jika pengguna bertanya, menulis, atau menyapa dalam Bahasa Inggris (English), Anda WAJIB merespons dan menjawab secara penuh dalam Bahasa Inggris yang fasih, elegan, dan profesional (Corporate Executive English).\n"
-        "     * Jika pengguna bertanya dalam Bahasa Mandarin (中文 / Chinese), Anda WAJIB merespons dan menjawab dalam Bahasa Mandarin yang akurat dan berstandar industri.\n"
-        "     * Jika pengguna bertanya dalam Bahasa Indonesia, jawab dalam Bahasa Indonesia yang baik, lugas, dan profesional.\n"
-        "     * Jika pengguna secara spesifik meminta bahasa tertentu (contoh: 'Jawab dalam bahasa Inggris', 'Please answer in English', 'Balas pakai bahasa Mandarin', 'Explain in Chinese'), Anda WAJIB sepenuhnya mengikuti instruksi bahasa tersebut.\n"
-        "   - KEMAMPUAN PENERJEMAHAN KHUSUS (TRANSLATION ENGINE):\n"
-        "     * Anda memiliki keahlian tingkat tinggi dalam menerjemahkan teks, dokumen spesifikasi teknis, draf email bisnis, penawaran harga, dan korespondensi dengan prinsipal internasional (Motorola Solutions, i.Safe Mobile Jerman, serta pabrikan perangkat di Tiongkok/Shenzhen) antara:\n"
-        "       1. Bahasa Indonesia ↔ English (Bahasa Inggris Bisnis & Teknik)\n"
-        "       2. Bahasa Indonesia ↔ Mandarin 中文 (Bahasa Mandarin Sederhana 简体 / Tradisional 繁體)\n"
-        "       3. English ↔ Mandarin 中文\n"
-        "     * Terminologi Resmi Industri Telekomunikasi & Ex-Proof CDPK HQ:\n"
-        "       • Intrinsically Safe / Ex-Proof: 本质安全 / 防爆 (fángbào)\n"
-        "       • Two-Way Radio / Walkie-Talkie: 对讲机 (duìjiǎngjī)\n"
-        "       • Repeater: 中继台 (zhōngjìtái) / 转发器\n"
-        "       • Distributed Antenna System (DAS): 分布式天线系统\n"
-        "       • Optical Master Unit (OMU): 光主单元 / Optical Remote Unit (ORU): 光远端单元\n"
-        "       • Bill of Materials: 物料清单 (BOM)\n"
-        "       • Push-to-Talk (PTT): 一键通 / 按键通话\n"
-        "     * Sajikan terjemahan secara kontekstual, profesional, dan alami. Jika diminta menerjemahkan pesan/dokumen, Anda dapat menyajikan format dwibahasa (Bilingual Side-by-Side atau Teks Asli + Terjemahan) agar mudah diverifikasi."
+        "   - TAUTAN GOOGLE DRIVE LANGSUNG: Selalu sertakan link clickable `<URL|Nama File>` yang diperoleh dari hasil pencarian.\n"
+        "13. ADAPTIVE LANGUAGE MATCHING (INDONESIA ↔ ENGLISH ↔ MANDARIN 中文):\n"
+        "   - Jawab dalam bahasa yang digunakan penanya (Indonesia, Corporate Executive English, atau Mandarin 中文) atau sesuai instruksi terjemahan yang diminta."
     )
+
+    q_low = (query or "").lower()
+    extra_specialist_blocks = []
+
+    # Safe Mode Modular Injection 1: Detail Gaji, Payroll & HRD hanya disuntikkan jika konteks pertanyaan menyangkut Gaji/HRD/Karyawan
+    hr_payroll_triggers = ["gaji", "salary", "payroll", "upah", "thp", "tunjangan", "absen", "kehadiran", "presensi", "talenta", "nip", "nik", "ktp", "npwp", "karyawan", "pegawai", "data diri", "pribadi"]
+    if any(t in q_low for t in hr_payroll_triggers):
+        extra_specialist_blocks.append(
+            "📌 PANDUAN KHUSUS DATA GAJI, PENGGAJIAN & KARYAWAN:\n"
+            "- Jika penanya adalah Direksi (seperti Adrian Bany Kansil / Pak Adrian) dan menanyakan gaji, tunjangan, THP, atau data pribadi:\n"
+            "  * Periksa dokumen 'rekap_gaji_2026.md' dan 'employee_analysis.md' pada Basis Pengetahuan Resmi di bawah.\n"
+            "  * Data Adrian Bany Kansil (NIP: 82112024, Vice Director): Gaji Pokok Rp 14.310.708 | Tunjangan Jabatan Rp 35.600.000 | Makan Rp 11.825.726 | Transport Rp 7.883.817 | Total Allowance Rp 55.309.543 | Gaji Bruto Rp 68.122.372 | Potongan PPh 21 Rp 14.794.234 | Potongan JHT/BPJS Rp 1.497.879 | THP Bersih Rp 53.328.138 (BCA 6030210300).\n"
+            "- Data Absensi harian terpusat di cloud Mekari Talenta; potongan bulanan tercatat di 'rekap_gaji_2026.md'.\n"
+            "- Untuk NIP/NIK/Jabatan karyawan (misal Teguh Yuliarto NIP: 23092014), periksa 'employee_analysis.md' & 'rekap_gaji_2026.md'. DILARANG menyatakan tidak ditemukan bila ada di Basis Pengetahuan di bawah!"
+        )
+
+    # Safe Mode Modular Injection 2: Kamus Terminologi Mandarin disuntikkan jika ada karakter Mandarin atau kata terjemahan/bahasa
+    has_cjk = bool(re.search(r'[\u4e00-\u9fff]', query or ""))
+    trans_triggers = ["mandarin", "chinese", "china", "terjemah", "translate", "artikan", "bahasa", "english", "inggris", "dwibahasa", "bilingual"]
+    if has_cjk or any(t in q_low for t in trans_triggers):
+        extra_specialist_blocks.append(
+            "🌐 TERMINOLOGI PENERJEMAHAN RESMI TELEKOMUNIKASI & EX-PROOF (INDONESIA ↔ ENGLISH ↔ MANDARIN 中文):\n"
+            "• Intrinsically Safe / Ex-Proof: 本质安全 / 防爆 (fángbào) | Two-Way Radio: 对讲机 (duìjiǎngjī)\n"
+            "• Repeater: 中继台 (zhōngjìtái) / 转发器 | Distributed Antenna System (DAS): 分布式天线系统\n"
+            "• Optical Master Unit (OMU): 光主单元 | Optical Remote Unit (ORU): 光远端单元\n"
+            "• Bill of Materials: 物料清单 (BOM) | Push-to-Talk (PTT): 一键通 / 按键通话\n"
+            "Sajikan terjemahan secara kontekstual, akurat, dan profesional."
+        )
 
     prompt_parts = [
         SYSTEM_PROMPT,
@@ -1288,7 +1288,7 @@ def get_effective_system_prompt(user_access: dict = None, query: str = "", chann
         strict_md_instruction,
         slack_formatting_instruction,
         solution_architect_instruction
-    ]
+    ] + extra_specialist_blocks
 
     if kb:
         prompt_parts.append(
@@ -1300,24 +1300,37 @@ def get_effective_system_prompt(user_access: dict = None, query: str = "", chann
     else:
         prompt_parts.append(
             "=== BASIS PENGETAHUAN RESMI CDPK HQ ===\n"
-            "Catatan: Tidak ditemukan dokumen arsip spesifik untuk kata kunci pencarian teks ini.\n"
-            "Jika pengguna melampirkan gambar/blueprint skema atau meminta perancangan solusi/BOM/dokumen, gunakan kapabilitas multimodal vision dan keahlian rekayasa sistem Solutions Architect Anda untuk menganalisis gambar dan merancang solusi secara komprehensif.\n"
+            "Catatan: Tidak ditemukan dokumen arsip spesifik untuk kata kunci pencarian teks ini. Gunakan kapabilitas Solutions Architect atau panggil tool Google Drive/Web Search bila diperlukan.\n"
             "=== AKHIR BASIS PENGETAHUAN ==="
         )
 
     return "\n\n".join(prompt_parts)
 
 def get_thread_context(client, channel: str, thread_ts: str, bot_user_id: str, user_access: dict = None, query: str = "") -> list:
-    """Mengambil riwayat percakapan dalam thread agar percakapan memiliki memori/konteks lengkap (termasuk media lampiran)."""
+    """
+    Mengambil riwayat percakapan dalam thread (Safe Mode Token Optimization):
+    - Mempertahankan hingga 10 pesan teks terakhir agar konteks diskusi 100% utuh dan nyambung.
+    - Hanya mengekstrak ulang lampiran gambar (Base64 Vision) pada pesan terbaru yang memiliki gambar,
+      mencegah duplikasi ribuan token gambar pada pesan-pesan lama di thread.
+    """
     messages = [{"role": "system", "content": get_effective_system_prompt(user_access, query=query, channel=channel)}]
     try:
-        result = client.conversations_replies(channel=channel, ts=thread_ts, limit=12)
-        for msg in result.get("messages", []):
+        result = client.conversations_replies(channel=channel, ts=thread_ts, limit=10)
+        raw_msgs = result.get("messages", [])
+
+        # Cari index pesan user paling akhir yang memiliki lampiran file agar hanya 1 pesan gambar terbaru yang di-encode Base64
+        latest_file_idx = -1
+        for idx in range(len(raw_msgs) - 1, -1, -1):
+            if raw_msgs[idx].get("user") != bot_user_id and raw_msgs[idx].get("files"):
+                latest_file_idx = idx
+                break
+
+        for idx, msg in enumerate(raw_msgs):
             role = "assistant" if msg.get("user") == bot_user_id else "user"
             clean_text = clean_mention(msg.get("text", ""))
 
-            # Jika pesan user memiliki lampiran file, coba muat medianya ke riwayat
-            if role == "user" and msg.get("files"):
+            # Hanya muat Base64 media untuk pesan bergambar paling baru di thread
+            if role == "user" and idx == latest_file_idx and msg.get("files"):
                 thread_media = download_and_convert_media(client, msg.get("files", []))
                 if thread_media:
                     content_list = []
@@ -1567,8 +1580,21 @@ def handle_direct_message(event, say, client):
     # 2. Pengecekan Perintah Uji Coba / On-Demand Co-Pilot (Khusus Direksi & Corp Secretary)
     t_low = user_text.lower().strip()
     if user_id in PILOT_EXECUTIVES:
-        if any(k in t_low for k in ["tes morning briefing", "test morning briefing", "kirim morning briefing", "cek morning briefing"]):
-            send_morning_executive_briefing(client, target_only_uid=user_id)
+        if any(k in t_low for k in ["tes morning briefing", "test morning briefing", "kirim morning briefing", "cek morning briefing", "tes digest pagi"]):
+            send_morning_executive_briefing(client, ask_grok_fn=ask_grok, target_only_uid=user_id)
+            if initial_dm_ts:
+                try:
+                    client.chat_delete(channel=event["channel"], ts=initial_dm_ts)
+                except Exception:
+                    pass
+            try:
+                client.reactions_remove(channel=event["channel"], timestamp=event["ts"], name="thinking_face")
+            except Exception:
+                pass
+            return
+
+        if any(k in t_low for k in ["tes midday digest", "test midday digest", "tes digest siang", "cek midday digest"]):
+            send_midday_executive_digest(client, ask_grok_fn=ask_grok, target_only_uid=user_id)
             if initial_dm_ts:
                 try:
                     client.chat_delete(channel=event["channel"], ts=initial_dm_ts)
