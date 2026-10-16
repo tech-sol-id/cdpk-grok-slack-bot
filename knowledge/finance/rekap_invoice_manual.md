@@ -20,7 +20,7 @@ Century Sinergy solusindo,1039,"888,000,000.00","Invoice bikin tgl 30/09/26, Bar
 Century Sinergy solusindo,1040,"888,000,000.00","Invoice bikin tgl 30/09/26, Barang dikirim Q4 Bulan Nopember-Desember 26"
 Century Sinergy solusindo,1041,"888,000,000.00","Invoice bikin tgl 30/09/26, Barang dikirim Q4 Bulan Nopember-Desember 26"
 Century Sinergy solusindo,1042,"888,000,000.00","Invoice bikin tgl 30/09/26, Barang dikirim Q4 Bulan Nopember-Desember 26"
-Century Sinergy solusindo,1043,"865,800,000.00","Invoice bikin tgl 30/09/26, Barang dikirim Q4 Bulan Nopember-Desember 26, Sudah bayar"
+Century Sinergy solusindo,1043,"865,800,000.00","Invoice bikin tgl 30/09/26, Barang dikirim 16 Oktober 2026, Sudah bayar"
 Century Sinergy solusindo,1044,"865,800,000.00","Invoice bikin tgl 30/09/26, Barang dikirim Q4 Bulan Nopember-Desember 26, Sudah bayar"
 ,,,
 ,Subtotal ,"14,775,487,500",

@@ -28,3 +28,4 @@ No | Nama Karyawan | Jabatan | Departement | Judul Pelatihan | Tanggal & Durasi 
 7.0 | Siswanto | Repair Staff | Technical and Service | MOTOTRBO IP Site Connect and Capacity Plus Systems Workshop | 25/05/2026 - 26/05/2026 |  |  | 💲1.100.000 (Rp 9.900.000/org) | On progress | Dibuatkan untuk Surat Perjanjian Ikatan Dinas
 8.0 | Oeky Try Kurniawan | Sales and Solution Engineer | Technic | MOTOTRBO IP Site Connect and Capacity Plus Systems Workshop | 25/05/2026 - 26/05/2026 |  |  |  | On progress | Dibuatkan untuk Surat Perjanjian Ikatan Dinas
 9.0 | Luthfi Kurniawan | Delivery | Finance and Accounting | Training Product Knowledge Motorola |  |  |  |  | Tidak Ada Sertifikat (Internal dari Pak Susilo)
+ | Dept Teknisi & Sales |  |  | Training Smart PTT | 2026-10-21 00:00:00 |  | 
