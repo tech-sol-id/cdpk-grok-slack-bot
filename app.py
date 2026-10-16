@@ -8,6 +8,7 @@ import requests
 import urllib.request
 import logging
 import threading
+from typing import Optional, Dict, Any, List
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from dotenv import load_dotenv
 from slack_bolt import App
@@ -731,13 +732,110 @@ USER_OFFICIAL_PROFILES = {
     "U0C2CR9NAF7": {"name": "Pak Adrian", "role": "DIREKSI", "email": "adrian@citradata.id", "title": "Direktur", "is_adrian": True},
     "U0C5FJNKXJR": {"name": "Bu Janice", "role": "DIREKSI", "email": "janice@citradata.id", "title": "Direktur"},
     "U0C6VQR8RT7": {"name": "Pak Richard", "role": "DIREKSI", "email": "rjap@citradata.id", "title": "Direktur"},
+    "U0C6LAR079B": {"name": "Bu Nada", "role": "CORP_SECRETARY", "email": "ho@citradata.id", "title": "Corporate Secretary"},
     "U0C6KD2P527": {"name": "Pak Sen Sen", "role": "FINANCE", "email": "sensen@citradata.id", "title": "Finance & Accounting"},
     "U0C6V9YCYLC": {"name": "Bu Ririn", "role": "FINANCE", "email": "office@citradata.id", "title": "Finance & Office"},
     "U0C502ZV7FA": {"name": "Bu Villa", "role": "FINANCE", "email": "finance@techsolutions.id", "title": "Finance Techsolutions"},
 }
 
+# ==============================================================================
+# CHANNEL PRIVACY GUARD & DATA LOSS PREVENTION (DLP)
+# ==============================================================================
+LEADERSHIP_CHANNELS = {"leadership", "c0c27cr4b5y"}
+FINANCE_CHANNELS = {"leadership", "c0c27cr4b5y", "grp-finance", "tch-finance"}
+
+SENSITIVE_DIREKSI_KEYWORDS = [
+    "corporate", "direksi", "bod drive", "hrd", "personalia", "legalitas", "akta",
+    "gaji", "payroll", "salary", "upah", "dividen", "komisi", "bonus", "saham",
+    "remunerasi", "persuratan", "surat keputusan", "surat kuasa", "notulen", "rups"
+]
+
+SENSITIVE_FINANCE_KEYWORDS = [
+    "finance", "accounting", "keuangan", "order management", "invoice", "faktur",
+    "kas kecil", "laba rugi", "neraca", "rekening", "po customer", "purchase order"
+]
+
+_CHANNEL_NAME_CACHE = {"c0c27cr4b5y": "leadership"}
+
+def get_channel_identifier(client, channel_id: str) -> str:
+    """Mengambil nama channel secara cerdas (dengan caching) untuk verifikasi DLP."""
+    if not channel_id:
+        return ""
+    if channel_id.startswith("D"):
+        return "im"
+    ch_key = channel_id.lower()
+    if ch_key in _CHANNEL_NAME_CACHE:
+        return _CHANNEL_NAME_CACHE[ch_key]
+    try:
+        if client:
+            info = client.conversations_info(channel=channel_id).get("channel", {})
+            c_name = info.get("name", "").lower()
+            if c_name:
+                _CHANNEL_NAME_CACHE[ch_key] = c_name
+                return c_name
+    except Exception as e:
+        logger.debug(f"conversations_info gagal untuk {channel_id}: {e}")
+    return ch_key
+
+def check_channel_privacy_guard(client, channel_id: str, user_text: str, user_access: dict) -> Optional[str]:
+    """
+    Memeriksa apakah permintaan data sensitif dilakukan pada channel yang aman.
+    Permintaan pada channel terbuka (yang ada member lain) DITOLAK demi kerahasiaan data.
+    """
+    if not channel_id:
+        return None
+
+    # 1. Direct Message (DM) selalu aman (1-on-1 dengan Grok)
+    if channel_id.startswith("D"):
+        return None
+
+    c_ident = get_channel_identifier(client, channel_id)
+    text_lower = user_text.lower()
+
+    # Cek apakah permintaan menyangkut data sensitif
+    is_direksi_req = any(w in text_lower for w in SENSITIVE_DIREKSI_KEYWORDS)
+    is_finance_req = any(w in text_lower for w in SENSITIVE_FINANCE_KEYWORDS)
+
+    if not is_direksi_req and not is_finance_req:
+        # Dokumen umum (Datasheet, brosur, SOP umum, dll) bebas di semua channel
+        return None
+
+    # Jika menyangkut data Direksi / Corporate / Legalitas / Gaji
+    if is_direksi_req:
+        # Hanya boleh di DM atau channel #leadership
+        env_leadership = os.environ.get("LEADERSHIP_CHANNEL_ID", "").lower()
+        if c_ident not in LEADERSHIP_CHANNELS and (not env_leadership or c_ident != env_leadership):
+            return (
+                "🔒 *Akses Data Sensitif Dibatasi di Channel Ini*\n\n"
+                "Demi menjaga kerahasiaan data perusahaan, permintaan dokumen atau informasi kategori "
+                "*Direksi, Corporate, Legalitas, dan Penggajian* tidak dapat ditampilkan pada channel terbuka yang memiliki anggota lain.\n\n"
+                "👉 *Silakan akses melalui:*\n"
+                "• Channel khusus Direksi: *#leadership*\n"
+                "• Atau melalui *Direct Message (DM) pribadi* dengan Grok CDPK."
+            )
+
+    # Jika menyangkut data Finance & Accounting / Order Management
+    if is_finance_req:
+        # Boleh di DM, #leadership, #grp-finance, atau #tch-finance
+        env_allowed = {
+            os.environ.get("LEADERSHIP_CHANNEL_ID", "").lower(),
+            os.environ.get("GRP_FINANCE_CHANNEL_ID", "").lower(),
+            os.environ.get("TCH_FINANCE_CHANNEL_ID", "").lower()
+        } - {""}
+        if c_ident not in FINANCE_CHANNELS and c_ident not in env_allowed:
+            return (
+                "🔒 *Akses Data Sensitif Dibatasi di Channel Ini*\n\n"
+                "Demi menjaga kerahasiaan data perusahaan, permintaan dokumen atau informasi kategori "
+                "*Finance & Accounting serta Order Management* tidak dapat ditampilkan pada channel terbuka yang memiliki anggota lain.\n\n"
+                "👉 *Silakan akses melalui:*\n"
+                "• Channel khusus: *#grp-finance*, *#tch-finance*, atau *#leadership*\n"
+                "• Atau melalui *Direct Message (DM) pribadi* dengan Grok CDPK."
+            )
+
+    return None
+
 def get_user_access_level(client, user_id: str) -> dict:
-    """Mengecek profil penanya di Slack untuk menentukan level hak akses secara presisi (Direksi, Finance, Standard) dan kepemilikan akun Adrian."""
+    """Mengecek profil penanya di Slack untuk menentukan level hak akses secara presisi (Direksi, Corp Secretary, Finance, Standard) dan kepemilikan akun Adrian."""
     if not user_id:
         return {"user_id": "", "level": "STANDARD", "name": "Anggota Tim", "email": "", "is_adrian": False}
 
@@ -771,6 +869,10 @@ def get_user_access_level(client, user_id: str) -> dict:
         if user_id in DIREKSI_USER_IDS or email in DIREKSI_EMAILS or any(d in email for d in ["adrian", "gama", "janice", "rjap"]) or any(t in title for t in ["direktur", "director", "ceo", "cfo", "coo", "cto"]):
             return {"user_id": user_id, "level": "DIREKSI", "name": real_name, "email": email, "title": profile.get("title", ""), "is_adrian": is_adrian_flag}
 
+        # Tier Khusus: Corporate Secretary (Bu Nada)
+        if user_id == "U0C6LAR079B" or email in ["ho@citradata.id", "corporate@techsolutions.id"] or any(k in email for k in ["ho@", "corporate@"]) or "corporate secretary" in title or "sekretaris" in title:
+            return {"user_id": user_id, "level": "CORP_SECRETARY", "name": real_name, "email": email, "title": profile.get("title", "Corporate Secretary"), "is_adrian": False}
+
         # Tier 2: Finance
         if user_id in FINANCE_USER_IDS or email in FINANCE_EMAILS or any(f in email for f in ["sensen", "finance@"]) or any(t in title for t in ["finance", "accounting", "keuangan"]):
             return {"user_id": user_id, "level": "FINANCE", "name": real_name, "email": email, "title": profile.get("title", ""), "is_adrian": is_adrian_flag}
@@ -782,7 +884,7 @@ def get_user_access_level(client, user_id: str) -> dict:
         return {"user_id": user_id, "level": "STANDARD", "name": "Anggota Tim", "email": "", "is_adrian": is_adrian_flag}
 
 def get_effective_system_prompt(user_access: dict = None, query: str = "") -> str:
-    """Menggabungkan System Prompt identitas, Hak Akses Pengguna (3-Tier RBAC), Panduan Rujukan, dan Basis Pengetahuan Relevan."""
+    """Menggabungkan System Prompt identitas, Hak Akses Pengguna (3-Tier RBAC + Corporate Secretary), Panduan Rujukan, dan Basis Pengetahuan Relevan."""
     user_name = user_access.get("name", "Anggota Tim") if user_access else "Anggota Tim"
     user_level = user_access.get("level", "STANDARD") if user_access else "STANDARD"
     is_adrian = user_access.get("is_adrian", False) if user_access else False
@@ -797,7 +899,21 @@ def get_effective_system_prompt(user_access: dict = None, query: str = "") -> st
             f"  * Seluruh Dokumen Umum, Proyek, dan Teknis\n"
             f"  * Dokumen Finance & Accounting serta Order Management\n"
             f"  * Dokumen kelompok Konfidensial: Corporate, Folder Direksi (BOD Drive), HRD, Personalia, Legalitas, Akta, serta Penggajian (Gaji/Payroll/Kompensasi)\n"
-            f"  * Seluruh dokumen di Shared Drives Google Drive CDPK HQ{adrian_note}."
+            f"  * Seluruh dokumen di Shared Drives Google Drive CDPK HQ{adrian_note}.\n"
+            f"- PROTEKSI SALURAN: Permintaan data sensitif Direksi/Finance pada channel publik yang ada anggota lain WAJIB ditolak dan diarahkan ke channel khusus (#leadership) atau via Direct Message (DM) pribadi."
+        )
+    elif user_level == "CORP_SECRETARY":
+        rbac_instruction = (
+            f"👤 IDENTITAS PENANYA: {user_name} (ROLE: CORPORATE SECRETARY CDPK HQ — TIER KHUSUS).\n"
+            f"OTORITAS AKSES: DOKUMEN CORPORATE, LEGALITAS, PERSURATAN DIREKSI & DOKUMEN UMUM.\n"
+            f"- Penanya BERHAK mengakses:\n"
+            f"  * Seluruh Dokumen Operasional Umum (produk, katalog, SOP teknis)\n"
+            f"  * Dokumen Corporate & Legalitas: Akta, NIB, TDP, Surat Izin Usaha, MoU, MoA, perizinan korporat\n"
+            f"  * Dokumen Persuratan Direksi: Surat Keputusan (SK) Direksi, Surat Kuasa, Notulen Rapat/RUPS, korespondensi resmi direksi\n"
+            f"- BATASAN KETAT (DILARANG KERAS):\n"
+            f"  * DILARANG KERAS memberikan informasi atau berkas yang berkaitan dengan: Penggajian (Gaji/Payroll/Salary/Upah), Dividen, Komisi, Bonus, Remunerasi, Pajak Pribadi Direksi, Saham, serta Laporan Keuangan Detail (Neraca/Laba Rugi/Kas Kecil).\n"
+            f"  * Jika ditanyakan, tolak secara tegas dan sopan: 'Dokumen terkait penggajian (gaji/payroll), dividen, komisi, dan remunerasi bersifat konfidensial dan HANYA dapat diakses oleh jajaran Direksi CDPK HQ.'\n"
+            f"- PROTEKSI SALURAN: Dokumen sensitif Corporate & Persuratan Direksi HANYA dapat diakses pada channel khusus (#leadership) atau via Direct Message (DM) pribadi."
         )
     elif user_level == "FINANCE":
         rbac_instruction = (
@@ -809,7 +925,8 @@ def get_effective_system_prompt(user_access: dict = None, query: str = "") -> st
             f"- BATASAN KETAT (DILARANG KERAS):\n"
             f"  * DILARANG memberikan informasi atau berkas dari kelompok: Corporate, Folder Direksi (BOD Drive), HRD, Personalia, Legalitas, Akta, serta data Gaji/Payroll/Kompensasi Direksi/Karyawan.\n"
             f"  * Jika ditanyakan, tolak secara sopan dan jelaskan bahwa dokumen Direksi, Legalitas, HRD, dan Penggajian hanya dapat diakses oleh Direksi CDPK HQ.\n"
-            f"- PENCARIAN GOOGLE DRIVE: Dibatasi HANYA pada Shared Drives / Team Drive resmi CDPK (DILARANG mengakses My Drive pribadi atau akun personal)."
+            f"- PENCARIAN GOOGLE DRIVE: Dibatasi HANYA pada Shared Drives / Team Drive resmi CDPK (DILARANG mengakses My Drive pribadi atau akun personal).\n"
+            f"- PROTEKSI SALURAN: Permintaan data Finance pada channel publik yang ada anggota lain WAJIB ditolak dan diarahkan ke channel khusus (#grp-finance / #tch-finance / #leadership) atau via Direct Message (DM) pribadi."
         )
     else:
         rbac_instruction = (
@@ -1005,6 +1122,22 @@ def handle_mention(event, say, client):
     user_id = event.get("user")
     user_access = get_user_access_level(client, user_id)
 
+    # 0. Penegakan Channel Privacy Guard (DLP untuk data sensitif di public/mixed channels)
+    guard_msg = check_channel_privacy_guard(client, channel, user_text, user_access)
+    if guard_msg:
+        if initial_notice_ts:
+            try:
+                client.chat_update(channel=channel, ts=initial_notice_ts, text=guard_msg)
+            except Exception:
+                say(text=guard_msg, thread_ts=thread_ts)
+        else:
+            say(text=guard_msg, thread_ts=thread_ts)
+        try:
+            client.reactions_remove(channel=channel, timestamp=event["ts"], name="thinking_face")
+        except Exception:
+            pass
+        return
+
     # 1. Pengecekan Perintah Khusus: Sinkronisasi / Update Knowledge Base dari Drive
     if is_sync_command(user_text):
         if user_access.get("level") == "DIREKSI":
@@ -1083,8 +1216,15 @@ def handle_mention(event, say, client):
 @app.event("message")
 def handle_direct_message(event, say, client):
     """Menangani pesan langsung (Direct Message) 1-on-1."""
-    # Hanya tangani jika tipe channel adalah DM (im) dan pesan bukan dari bot itu sendiri
-    if event.get("channel_type") != "im" or event.get("subtype") is not None:
+    channel = event.get("channel", "")
+    is_dm = channel.startswith("D") or event.get("channel_type") == "im"
+    if not is_dm:
+        return
+
+    # Abaikan pesan dari bot itu sendiri atau event subtype sistem/hapus
+    if event.get("bot_id") or event.get("user") == "U0C9AN8PA80":
+        return
+    if event.get("subtype") in ["message_deleted", "channel_join", "channel_leave"]:
         return
 
     user_text = event.get("text", "").strip()

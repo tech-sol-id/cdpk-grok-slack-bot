@@ -20,6 +20,12 @@ DIREKSI_ONLY_KEYWORDS = [
     "gaji", "payroll", "salary", "upah", "dividen", "bonus", "pajak direksi", "saham"
 ]
 
+# Kelompok Kata Kunci Penggajian, Dividen, Komisi & Remunerasi Eksekutif (Khusus Direksi Saja)
+PAYROLL_DIVIDEND_KEYWORDS = [
+    "gaji", "payroll", "salary", "upah", "dividen", "komisi", "bonus",
+    "remunerasi", "pajak direksi", "saham", "rekening direksi"
+]
+
 # Kelompok Kata Kunci FINANCE & ORDER MANAGEMENT
 FINANCE_KEYWORDS = [
     "finance", "accounting", "keuangan", "order management", "invoice", "faktur",
@@ -145,14 +151,21 @@ def search_google_drive(query: str, account: str = "all", max_results: int = 5, 
 
     # --- PENEGAKAN HAK AKSES PADA QUERY INPUT ---
     if user_level != "DIREKSI":
-        # Blocklist untuk selain Direksi (Finance & Umum)
-        if any(w in q_lower for w in DIREKSI_ONLY_KEYWORDS):
-            return "🔒 *Akses Ditolak:* Dokumen kelompok Corporate, Folder Direksi, HRD, Personalia, Legalitas, dan Penggajian (Gaji) bersifat konfidensial dan HANYA dapat diakses oleh jajaran Direksi CDPK HQ."
-
-        # Blocklist tambahan untuk Umum (Staf Biasa)
-        if user_level == "STANDARD":
+        # Role Khusus: Corporate Secretary (Bu Nada)
+        if user_level == "CORP_SECRETARY":
+            if any(w in q_lower for w in PAYROLL_DIVIDEND_KEYWORDS):
+                return "🔒 *Akses Ditolak:* Dokumen terkait penggajian (gaji/payroll), dividen, komisi, bonus, dan remunerasi bersifat konfidensial dan HANYA dapat diakses oleh jajaran Direksi CDPK HQ."
             if any(w in q_lower for w in FINANCE_KEYWORDS):
-                return "🔒 *Akses Ditolak:* Dokumen Finance & Accounting serta Order Management bersifat konfidensial dan hanya dapat diakses oleh Tim Finance atau Direksi CDPK HQ."
+                return "🔒 *Akses Ditolak:* Dokumen detail Finance & Accounting bersifat konfidensial dan HANYA dapat diakses oleh Tim Finance atau Direksi CDPK HQ."
+        else:
+            # Blocklist untuk selain Direksi (Finance & Umum)
+            if any(w in q_lower for w in DIREKSI_ONLY_KEYWORDS):
+                return "🔒 *Akses Ditolak:* Dokumen kelompok Corporate, Folder Direksi, HRD, Personalia, Legalitas, dan Penggajian (Gaji) bersifat konfidensial dan HANYA dapat diakses oleh jajaran Direksi CDPK HQ."
+
+            # Blocklist tambahan untuk Umum (Staf Biasa)
+            if user_level == "STANDARD":
+                if any(w in q_lower for w in FINANCE_KEYWORDS):
+                    return "🔒 *Akses Ditolak:* Dokumen Finance & Accounting serta Order Management bersifat konfidensial dan hanya dapat diakses oleh Tim Finance atau Direksi CDPK HQ."
 
     # --- PENEGAKAN AKUN PERSONAL (HANYA ADRIAN) ---
     acc_lower = account.lower().strip()
@@ -227,14 +240,20 @@ def search_google_drive(query: str, account: str = "all", max_results: int = 5, 
         fn_low = item["name"].lower()
         drive_id = item.get("driveId")
 
-        # 1. Non-Direksi dilarang mengakses berkas di BOD Drive atau berkas dengan kata kunci Direksi/HRD/Legal/Gaji
-        if user_level != "DIREKSI":
+        # 1. Penegakan Hak Akses Hasil Pencarian Berdasarkan Role
+        if user_level == "CORP_SECRETARY":
+            # Corporate Secretary: boleh Corporate, Legalitas, Persuratan Direksi.
+            # DILARANG: Gaji, Payroll, Dividen, Komisi, Bonus, Saham, Pajak Direksi, Finance & Accounting
+            if any(w in fn_low for w in PAYROLL_DIVIDEND_KEYWORDS) or any(w in fn_low for w in FINANCE_KEYWORDS):
+                continue
+        elif user_level != "DIREKSI":
+            # Non-Direksi dilarang mengakses berkas di BOD Drive atau berkas dengan kata kunci Direksi/HRD/Legal/Gaji
             if drive_id == BOD_DRIVE_ID:
                 continue
             if any(w in fn_low for w in DIREKSI_ONLY_KEYWORDS):
                 continue
 
-            # 2. Staf Umum dilarang mengakses berkas kategori Finance & Order Management
+            # Staf Umum dilarang mengakses berkas kategori Finance & Order Management
             if user_level == "STANDARD":
                 if any(w in fn_low for w in FINANCE_KEYWORDS):
                     continue
@@ -350,7 +369,10 @@ def read_google_drive_file(file_id: str, account: str = "citradata", max_chars: 
         return f"🔒 *Akses Ditolak:* Dokumen '*{fname}*' berada di My Drive pribadi. Pengguna selain Pak Adrian hanya berhak mengakses dokumen pada Shared Drives / Team Drive resmi CDPK HQ."
 
     # --- PENEGAKAN ATURAN HAK AKSES TIER PADA BERKAS ---
-    if user_level != "DIREKSI":
+    if user_level == "CORP_SECRETARY":
+        if any(w in fn_low for w in PAYROLL_DIVIDEND_KEYWORDS) or any(w in fn_low for w in FINANCE_KEYWORDS):
+            return f"🔒 *Akses Ditolak:* Dokumen '*{fname}*' berkaitan dengan data penggajian/keuangan konfidensial dan HANYA dapat dibuka oleh jajaran Direksi CDPK HQ."
+    elif user_level != "DIREKSI":
         # Dilarang buka berkas BOD Drive atau nama mengandung Corporate/Direksi/HRD/Legalitas/Gaji
         if drive_id == BOD_DRIVE_ID or any(w in fn_low for w in DIREKSI_ONLY_KEYWORDS):
             return f"🔒 *Akses Ditolak:* Dokumen '*{fname}*' merupakan kelompok dokumen konfidensial Direksi/Corporate/HRD/Legalitas/Gaji dan HANYA dapat dibuka oleh jajaran Direksi CDPK HQ."
