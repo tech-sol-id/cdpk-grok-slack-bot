@@ -514,8 +514,13 @@ def ask_grok(messages: list, client=None, channel: str = None, thread_ts: str = 
         logger.error(f"Error memanggil xAI API: {e}")
         return f"⚠️ Terjadi kendala saat menghubungi Grok API: `{str(e)}`"
 
-def extract_smart_snippet(content: str, query_tokens: list, max_length: int = 5000) -> str:
+def extract_smart_snippet(content: str, query_tokens: list, max_length: int = 7500) -> str:
     """Mengekstrak cuplikan cerdas yang berfokus pada bagian dokumen dengan kemunculan kata kunci terbanyak."""
+    # Untuk file data tabel/rekap/analisis karyawan (panjang sedang tapi sangat padat), jangan potong agar tidak kehilangan baris data
+    header_peek = content[:400].lower()
+    if len(content) <= 25000 and any(h in header_peek for h in ["employee id", "nama pegawai", "gaji bruto", "ptkp status", "nip,status"]):
+        return content
+
     if len(content) <= max_length:
         return content
 
@@ -536,7 +541,7 @@ def extract_smart_snippet(content: str, query_tokens: list, max_length: int = 50
     match_positions.sort()
     best_pos = match_positions[0]
     max_in_window = 0
-    window_span = 2500
+    window_span = 3000
 
     for pos in match_positions:
         count = sum(1 for p in match_positions if pos <= p <= pos + window_span)
@@ -578,11 +583,12 @@ def retrieve_relevant_knowledge(query: str, user_level: str = "STANDARD", top_k:
     stop_words = {
         "apa", "dan", "yang", "di", "ke", "dari", "ini", "itu", "untuk", "pada", "adalah",
         "saya", "bisa", "bagaimana", "apakah", "ttg", "tentang", "jelaskan", "tolong", "info", "kasih",
-        "minta", "berikan", "kirim", "lihat", "cari", "tampilkan", "sebutkan", "dong", "ya", "mohon", "cek"
+        "minta", "berikan", "kirim", "lihat", "cari", "tampilkan", "sebutkan", "dong", "ya", "mohon", "cek",
+        "data", "arsip", "dokumen", "file", "berkas", "semua", "ada", "gak", "nggak", "nya"
     }
     search_tokens = [t for t in raw_tokens if t not in stop_words and len(t) >= 3]
     if not search_tokens:
-        search_tokens = raw_tokens
+        search_tokens = [t for t in raw_tokens if t not in stop_words] or raw_tokens
 
     # Kamus alias merek & lini produk CDPK HQ
     brand_aliases = {
@@ -604,7 +610,7 @@ def retrieve_relevant_knowledge(query: str, user_level: str = "STANDARD", top_k:
     # Deteksi kode model/produk (mengandung kombinasi huruf & angka, misal 'is540', 'is440', 'slr5000', 'rg170')
     product_codes = [t for t in expanded_tokens if any(c.isdigit() for c in t) and any(c.isalpha() for c in t)]
 
-    # Sinonim istilah teknis dari Bahasa Indonesia ke Bahasa Inggris untuk dokumen internasional
+    # Sinonim istilah teknis dari Bahasa Indonesia ke Bahasa Inggris untuk dokumen internasional & istilah HR/Finance
     synonyms = {
         "spesifikasi": ["specification", "specifications", "technical features", "datasheet", "features"],
         "spek": ["specification", "specifications", "technical features", "datasheet"],
@@ -614,6 +620,21 @@ def retrieve_relevant_knowledge(query: str, user_level: str = "STANDARD", top_k:
         "topologi": ["topology", "das", "riser", "omu", "oru", "antenna", "splitter", "coupler", "coverage"],
         "desain": ["design", "das", "omu", "oru", "architecture", "diagram"],
         "gambar": ["diagram", "schematic", "blueprint", "plan", "riser"],
+        # HR, Gaji, Payroll & Absensi
+        "salary": ["gaji", "payroll", "upah", "thp", "remunerasi", "penghasilan", "tunjangan", "rekap_gaji"],
+        "gaji": ["salary", "payroll", "upah", "thp", "remunerasi", "penghasilan", "tunjangan", "rekap", "rekap_gaji"],
+        "payroll": ["salary", "gaji", "upah", "thp", "remunerasi", "rekap_gaji"],
+        "upah": ["gaji", "salary", "payroll", "thp", "tunjangan"],
+        "thp": ["take home pay", "gaji", "salary", "payroll", "penghasilan"],
+        "tunjangan": ["allowance", "gaji", "salary", "makan", "transport", "jabatan"],
+        "absensi": ["kehadiran", "presensi", "attendance", "absen", "cuti", "izin", "sakit", "terlambat", "talenta", "mekari", "ketidakhadiran"],
+        "kehadiran": ["absensi", "presensi", "attendance", "absen", "cuti", "izin", "sakit", "terlambat", "talenta", "mekari", "ketidakhadiran"],
+        "absen": ["absensi", "kehadiran", "presensi", "attendance", "cuti", "izin", "terlambat"],
+        "presensi": ["absensi", "kehadiran", "attendance", "absen"],
+        "karyawan": ["employee", "pegawai", "staf", "staff", "personalia", "hrd", "sdm"],
+        "pegawai": ["karyawan", "employee", "staf", "staff", "personalia", "hrd", "sdm"],
+        "personalia": ["karyawan", "pegawai", "hrd", "absensi", "gaji"],
+        "hrd": ["personalia", "karyawan", "pegawai", "absensi", "talenta"],
     }
     for st in list(expanded_tokens):
         if st in synonyms:
@@ -685,17 +706,24 @@ def retrieve_relevant_knowledge(query: str, user_level: str = "STANDARD", top_k:
                 elif matched_token_count >= 2:
                     score += matched_token_count * 60.0
 
-                # 5. Boost dokumen profil/overview HANYA jika bukan pencarian kode produk spesifik
-                if not product_codes:
-                    if any(w in fn_lower for w in ["cdpk_overview", "businessprospect", "prospect", "training", "katalog", "profile"]):
-                        score += 150.0
+                # 5. Boost dokumen profil/overview HANYA jika kueri menanyakan profil/tentang perusahaan
+                if any(w in cleaned_query for w in ["profil", "profile", "tentang cdpk", "tentang perusahaan", "sejarah", "overview", "latar belakang"]):
+                    if any(w in fn_lower for w in ["cdpk_overview", "profile", "company_profile"]):
+                        score += 250.0
 
-                    if "cdpk_overview" in fn_lower:
-                        score += 200.0
+                # 6. Boost dokumen gaji jika kueri menyangkut gaji/salary/payroll
+                if any(w in cleaned_query for w in ["gaji", "salary", "payroll", "upah", "thp", "remunerasi"]):
+                    if any(w in fn_lower for w in ["rekap_gaji", "gaji", "payroll"]):
+                        score += 350.0
+
+                # 7. Boost dokumen absensi/karyawan jika kueri menyangkut absensi/karyawan
+                if any(w in cleaned_query for w in ["absen", "absensi", "kehadiran", "presensi", "talenta"]):
+                    if any(w in fn_lower for w in ["rekap_gaji", "employee", "karyawan", "personalia", "peraturan_perusahaan"]):
+                        score += 250.0
 
                 if score > 0:
                     category = first_segment.upper() if first_segment != "." else "UMUM"
-                    snippet = extract_smart_snippet(content, search_tokens + product_codes)
+                    snippet = extract_smart_snippet(content, expanded_tokens + product_codes, max_length=7500)
                     scored_docs.append((score, file, category, snippet))
             except Exception as e:
                 logger.warning(f"Gagal membaca file .md {file}: {e}")
@@ -960,8 +988,9 @@ def get_effective_system_prompt(user_access: dict = None, query: str = "", chann
         "2. DOMAIN BISNIS RESMI: CDPK HQ bergerak di bidang SOLUSI KOMUNIKASI RADIO NIRKABEL PROFESIONAL (Motorola Solutions, FMTCS Solutions, POCStar, Tramigo), PERALATAN OUTDOOR & DIVING (Skywoods), serta PERANGKAT INTRINSICALLY SAFE ATEX/EX (i.Safe Mobile).\n"
         "3. ANTI-HALUSINASI SINGKATAN/ISTILAH: DILARANG mengartikan singkatan internal/produk (seperti FMTCS, IMS, FMTCS-LRF, POCStar, MCX, DMR, DAS, ATEX, HazLoc) ke bidang lain di luar bisnis telekomunikasi CDPK HQ. FMTCS adalah penyedia solusi sistem komunikasi nirkabel dan DAS mitra resmi CDPK HQ.\n"
         "4. ANALISIS MULTIMODAL BLUEPRINT & GAMBAR: Jika pengguna melampirkan gambar skema, blueprint, denah, atau riser diagram kabel, Anda WAJIB menganalisis secara visual gambar tersebut, mengidentifikasi arsitektur gedung/lantai/riser, serta merekomendasikan solusi sistem DAS & radio CDPK HQ (FMTCS / Motorola).\n"
-        "5. JIKA INFORMASI ARSIP TIDAK DITEMUKAN: Hanya jika pengguna menanyakan fakta/arsip internal perusahaan yang tidak ada di data arsip dan tidak melampirkan gambar untuk dianalisis, nyatakan: 'Informasi arsip tersebut tidak ditemukan dalam basis pengetahuan resmi CDPK HQ.'\n"
-        "6. REFERENSI RESMI: Jika merujuk dokumen tertentu, sebutkan nama subjek dokumen secara wajar tanpa menyebut ekstensi teknis file."
+        "5. PENCARIAN GOOGLE DRIVE BILA DATA ARSIP TIDAK ADA DI CUPLIKAN LOKAL: Jika pengguna menanyakan data arsip perusahaan spesifik (seperti rekapitulasi gaji, data absensi/kehadiran, SK pengangkatan, form HRD, laporan bulanan, dsb) yang belum tercakup di cuplikan teks di bawah, Anda WAJIB MEMANGGIL TOOL 'search_google_drive' terlebih dahulu untuk mencari file terkait di Shared Drives resmi CDPK sebelum menyimpulkan bahwa data tidak ditemukan.\n"
+        "6. JIKA INFORMASI ARSIP BENAR-BENAR TIDAK DITEMUKAN: Hanya jika setelah memeriksa basis pengetahuan dan mencari di Google Drive informasi tetap tidak ada, nyatakan secara transparan: 'Informasi arsip tersebut tidak ditemukan dalam basis pengetahuan maupun Google Drive resmi CDPK HQ.' JANGAN PERNAH menyatakan tidak ada jika informasinya tertera pada Basis Pengetahuan Resmi di bawah ini!\n"
+        "7. REFERENSI RESMI: Jika merujuk dokumen tertentu, sebutkan nama subjek dokumen secara wajar tanpa menyebut ekstensi teknis file."
     )
 
     slack_formatting_instruction = (
@@ -1038,7 +1067,7 @@ def get_effective_system_prompt(user_access: dict = None, query: str = "", chann
         "   - PROTEKSI PENGHEMAT TOKEN: Hasil web search dan ekstraksi URL telah dibatasi secara ringkas dan padat (~1.500 karakter). Olah data tersebut secara cerdas untuk menghasilkan jawaban eksekutif bernilai tinggi tanpa menghabiskan kuota token berlebih.\n"
         "12. GOOGLE DRIVE OPERATIONAL & KNOWLEDGE INTEGRATION (CDPK & TECHSOLUTIONS DRIVES):\n"
         "   - PENCARIAN BERKAS GOOGLE DRIVE ('search_google_drive'):\n"
-        "     * Panggil tool ini jika pengguna meminta mencari berkas di Google Drive (contoh: 'cari file di Google Drive...', 'cek spreadsheet stok di Drive', 'carikan datasheet P8668i di Drive Citradata', 'cari dokumen PHE ONWJ di Drive').\n"
+        "     * Panggil tool ini jika pengguna meminta mencari berkas di Google Drive, ATAU jika pengguna meminta file/spreadsheet/dokumen resmi (seperti rekapitulasi gaji, data absensi/kehadiran, form HRD, SOP, invoice, kontrak, penawaran resmi) yang belum lengkap di cuplikan basis pengetahuan lokal!\n"
         "     * Gunakan parameter 'account': 'citradata' (default), 'techsolutions', atau 'all' untuk mencari di kedua organisasi CDPK HQ.\n"
         "   - PEMBACAAN ISI DOKUMEN/SPREADSHEET ('read_google_drive_file'):\n"
         "     * Panggil tool ini HANYA JIKA pengguna secara spesifik meminta Anda membaca, menganalisis, merangkum, atau mengecek isi data di dalam berkas/spreadsheet/PDF tersebut.\n"
