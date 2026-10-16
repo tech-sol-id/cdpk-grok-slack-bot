@@ -39,7 +39,7 @@ RUANG LINGKUP
 
 PASAL 2
 JANGKA WAKTU SEWA
-1. Masa sewa berlaku selama 2 (dua) tahun, terhitung sejak 15 Oktober 2026 sampai dengan 14 Oktober 2028.
+1. Masa sewa berlaku selama 2 (dua) tahun, terhitung sejak 15 Desember 2026 sampai dengan 14 November 2028.
 2. Perpanjangan masa sewa dapat dilakukan berdasarkan kesepakatan tertulis Para Pihak.
 3. Apabila PIHAK KEDUA bermaksud memperpanjang masa sewa, PIHAK KEDUA wajib menyampaikan pemberitahuan kepada PIHAK PERTAMA sebelum berakhirnya masa sewa.
 PASAL 3
@@ -79,6 +79,7 @@ PIHAK KEDUA berkewajiban:
    4. Mematuhi peraturan pengelola Harco;
    5. Menanggung biaya yang timbul dari penggunaan objek sewa untuk kegiatan usaha PIHAK KEDUA, kecuali secara tegas disepakati lain oleh Para Pihak;
    6. Mengembalikan objek sewa kepada PIHAK PERTAMA pada saat masa sewa berakhir dalam kondisi baik dan wajar, dengan memperhatikan penyusutan yang terjadi karena pemakaian normal.
+   7. Tidak menggunakan objek sewa untuk menyimpan, memajang, menawarkan, menjual, atau memperdagangkan barang dan/atau produk yang dilarang berdasarkan ketentuan peraturan perundang-undangan yang berlaku di Republik Indonesia. PIHAK KEDUA wajib memastikan seluruh kegiatan usaha yang dilakukan di objek sewa sesuai dengan hukum yang berlaku.
 PASAL 7
 PERUBAHAN DAN RENOVASI
    1. Setiap renovasi, perubahan struktur, pemasangan perlengkapan permanen, atau perubahan fisik pada objek sewa wajib mendapatkan persetujuan terlebih dahulu dari PIHAK PERTAMA dan, apabila diperlukan, dari pengelola Harco.

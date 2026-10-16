@@ -45,6 +45,11 @@ III | KEDISIPLINAN & KEPATUHAN |  | 0.15 |  |  |  |
  | 5. Tidak Lolos Masa Probation/Demosi Jabatan | 
  | Catatan Tambahan : |  | 
  | Disetujui untuk penyesuaian gaji berkala serta bonus kuartalan sesuai hasil pencapaian predikat Baik (B). |  | 
+ | Saran kepada Manager (spesifik menanyakan pertanyaan dibawah) |  | 
+ | Absensi Terlambat (izin,sakit,cuti) |  | 
+ | Target mengerjakan tugas seperti apa? |  | 
+ | Dalam mengerjakan tugas sikapnya aktif/pasif |  | 
+ | Koordinasi dengan rekan kerja seperti apa? |  | 
  | Lembar Persetujuan
  | Karyawan Yang Dinilai | Atasan Penilai | Departemen HRD
  | Tanda Tangan & Tanggal | Direct Supervisor / Manager | Head of HR
