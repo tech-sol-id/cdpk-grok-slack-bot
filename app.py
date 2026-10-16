@@ -325,6 +325,9 @@ def format_slack_text(text: str) -> str:
     # 5. Hilangkan backtick pada kutipan dokumen yang kaku
     text = re.sub(r"`\*([^\*]+)\*`", r"*\1*", text)
 
+    # 6. Konversi tautan markdown [Label](url) menjadi format tautan Slack resmi <url|Label>
+    text = re.sub(r'\[([^\]]+)\]\((https?://[^\)]+)\)', r'<\2|\1>', text)
+
     return text
 
 def ask_grok(messages: list, client=None, channel: str = None, thread_ts: str = None, user_id: str = None) -> str:
@@ -811,15 +814,19 @@ def get_effective_system_prompt(user_access: dict = None, query: str = "") -> st
         f"     * PANGGIL TOOL 'set_reminder' dengan parameter target, reminder_message, delay_seconds, target_time_description, dan recurrence!\n"
         f"   - Jika pengguna meminta melihat daftar reminder yang sedang aktif di channel ini, PANGGIL TOOL 'list_reminders'.\n"
         f"   - Jika pengguna meminta membatalkan pengingat, PANGGIL TOOL 'cancel_reminder'.\n"
-        "11. PENCARIAN INFORMASI (TRIGGER 'TOLONG CARI INFO...', PRIORITAS KNOWLEDGE BASE & TRANSPARANSI SUMBER):\n"
+        "11. PENCARIAN INFORMASI (TRIGGER 'TOLONG CARI INFO...', PRIORITAS KNOWLEDGE BASE, TRANSPARANSI & LINK REFERENSI):\n"
         "   - TRIGGER 'TOLONG CARI INFO...': Jika pengguna menggunakan kalimat 'tolong cari info...', 'cari info...', 'tolong carikan info...', atau meminta pencarian informasi tertentu:\n"
         "     * TAHAP 1 (PERIKSA ARSIP INTERNAL CDPK): Selalu periksa 'BASIS PENGETAHUAN RESMI CDPK HQ' yang tersedia terlebih dahulu.\n"
         "     * TAHAP 2 (FALLBACK LIVE SEARCH INTERNET): BILA informasi yang diminta TIDAK ADA, belum lengkap, atau membutuhkan komparasi harga pasar/regulasi terkini di luar arsip Citradata, BARU PANGGIL TOOL 'perform_web_search'!\n"
         "   - BACA URL LINK ('read_web_page_content'): Panggil tool ini jika pesan pengguna menyertakan tautan URL website (http/https) dan meminta Anda membaca, merangkum, mengekstrak data teknis, atau menganalisis isinya.\n"
-        "   - TRANSPARANSI SUMBER DATA (WAJIB & EKSPLISIT): Dalam jawaban akhir, Anda WAJIB menyampaikan secara jelas dan terpisah kepada pengguna bagian data mana yang bersumber dari internal CDPK HQ dan mana yang diperoleh dari Internet. Gunakan penanda elegan, contoh:\n"
-        "     • 🏢 *Data Resmi CDPK HQ:* [Rincian informasi/spesifikasi dari arsip internal Citradata]\n"
-        "     • 🌐 *Informasi Tambahan dari Internet:* [Rincian data/harga pasar/regulasi hasil live web search]\n"
-        "     (Jika data seluruhnya dari internal CDPK atau seluruhnya dari internet, sampaikan sumbernya dengan tegas dan transparan).\n"
+        "   - TRANSPARANSI SUMBER DATA & LINK REFERENSI (WAJIB & EKSPLISIT):\n"
+        "     * Dalam jawaban akhir, Anda WAJIB menyampaikan secara jelas dan terpisah kepada pengguna bagian data mana yang bersumber dari internal CDPK HQ dan mana yang diperoleh dari Internet.\n"
+        "     * WAJIB SERTAKAN LINK TAUTAN SEBAGAI REFERENSI: Setiap data yang diperoleh dari hasil pencarian internet atau pembacaan web, Anda WAJIB mencantumkan URL link sumbernya sebagai referensi (contoh: `<https://url-sumber.com|Nama Sumber / Judul>` atau `🔗 *Tautan Referensi:* <https://url-sumber.com>`) agar pengguna dapat langsung memverifikasi.\n"
+        "     * Contoh format terstruktur:\n"
+        "       • 🏢 *Data Resmi CDPK HQ:* [Rincian informasi/spesifikasi dari arsip internal Citradata]\n"
+        "       • 🌐 *Informasi Tambahan dari Internet:* [Rincian data/harga pasar/regulasi hasil live web search]\n"
+        "         └─ 🔗 *Tautan Referensi:* <https://sumber-website.com|Judul Halaman Web>\n"
+        "     (Jika data seluruhnya dari internal CDPK atau seluruhnya dari internet, sampaikan sumbernya dengan tegas dan transparan beserta link tautannya jika dari web).\n"
         "   - PROTEKSI PENGHEMAT TOKEN: Hasil web search dan ekstraksi URL telah dibatasi secara ringkas dan padat (~1.500 karakter). Olah data tersebut secara cerdas untuk menghasilkan jawaban eksekutif bernilai tinggi tanpa menghabiskan kuota token berlebih."
     )
 
