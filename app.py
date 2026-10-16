@@ -22,8 +22,9 @@ from reminder_engine import (
     get_now_wib,
     REMINDER_TOOLS
 )
+from web_search_engine import perform_web_search, read_web_page_content, WEB_TOOLS
 
-ALL_TOOLS = DOC_TOOLS + REMINDER_TOOLS
+ALL_TOOLS = DOC_TOOLS + REMINDER_TOOLS + WEB_TOOLS
 
 # Muat variabel environment dari .env
 load_dotenv()
@@ -435,6 +436,16 @@ def ask_grok(messages: list, client=None, channel: str = None, thread_ts: str = 
                     else:
                         tool_output_str = f"Pengingat '{rem_ident}' tidak ditemukan di daftar aktif."
 
+                # 6. Tool Web Search: Live Internet Search
+                elif fn_name == "perform_web_search":
+                    query_term = fn_args.get("query", "")
+                    tool_output_str = perform_web_search(query_term)
+
+                # 7. Tool Web Search: Read Web Page Content
+                elif fn_name == "read_web_page_content":
+                    target_url = fn_args.get("url", "")
+                    tool_output_str = read_web_page_content(target_url)
+
                 tool_call_messages.append({
                     "role": "tool",
                     "tool_call_id": tc.id,
@@ -799,7 +810,12 @@ def get_effective_system_prompt(user_access: dict = None, query: str = "") -> st
         f"     * Hitung selisih detik ('delay_seconds') dari waktu server saat ini ke waktu target pengingat.\n"
         f"     * PANGGIL TOOL 'set_reminder' dengan parameter target, reminder_message, delay_seconds, target_time_description, dan recurrence!\n"
         f"   - Jika pengguna meminta melihat daftar reminder yang sedang aktif di channel ini, PANGGIL TOOL 'list_reminders'.\n"
-        f"   - Jika pengguna meminta membatalkan pengingat, PANGGIL TOOL 'cancel_reminder'."
+        f"   - Jika pengguna meminta membatalkan pengingat, PANGGIL TOOL 'cancel_reminder'.\n"
+        "11. LIVE INTERNET SEARCH & URL READER (ON-DEMAND & TOKEN-GUARD PROTECTED):\n"
+        "   - PRIORITAS SUMBER UTAMA: Basis pengetahuan resmi internal CDPK HQ selalu menjadi rujukan prioritas utama.\n"
+        "   - KAPAN MEMANGGIL 'perform_web_search': Panggil tool ini HANYA JIKA pengguna meminta informasi pasar eksternal terkini di luar arsip internal CDPK (seperti: harga pasar perangkat Motorola/Hytera/i.Safe, berita atau regulasi frekuensi Kominfo/SDPPI terbaru, tren teknologi industri, atau spesifikasi perangkat kompetitor yang belum tercatat di arsip internal).\n"
+        "   - KAPAN MEMANGGIL 'read_web_page_content': Panggil tool ini jika pesan pengguna menyertakan tautan URL website (http/https) dan meminta Anda membaca, merangkum, mengekstrak data teknis, atau menganalisis konten laman tersebut.\n"
+        "   - PROTEKSI PENGHEMAT TOKEN: Hasil web search dan ekstraksi URL telah dibatasi secara ringkas dan padat. Olah data tersebut secara cerdas untuk menghasilkan jawaban eksekutif bernilai tinggi tanpa menghabiskan kuota token berlebih."
     )
 
     prompt_parts = [
