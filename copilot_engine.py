@@ -632,21 +632,74 @@ def check_and_send_proactive_meeting_reminders(client):
 # TAHAP 2 & 3 TERPADU: 3X DAILY INCREMENTAL TIME-WINDOW & PER-CHANNEL CACHING
 # (09:00 WIB Morning Kick-Off, 13:30 WIB Mid-Day Pulse, 18:00 WIB EOD Digest)
 # ==============================================================================
+_USER_NAME_CACHE: Dict[str, Dict[str, Any]] = {}
+
+
+def get_user_display_name(client, user_id: str, ttl_sec: int = 3600) -> str:
+    """
+    Mengambil nama lengkap / panggilan pengguna Slack dengan in-memory caching (0 Token AI).
+    """
+    if not user_id:
+        return "Anggota Tim"
+    if user_id in PILOT_EXECUTIVES:
+        return PILOT_EXECUTIVES[user_id]["short_name"]
+
+    now = time.time()
+    cached = _USER_NAME_CACHE.get(user_id)
+    if cached and cached.get("expires_at", 0) > now:
+        return cached["name"]
+
+    name = user_id
+    if client:
+        try:
+            u_info = client.users_info(user=user_id).get("user", {})
+            prof = u_info.get("profile", {})
+            name = (
+                prof.get("real_name")
+                or prof.get("display_name")
+                or u_info.get("real_name")
+                or u_info.get("name")
+                or user_id
+            )
+            _USER_NAME_CACHE[user_id] = {"name": name, "expires_at": now + ttl_sec}
+        except Exception:
+            pass
+    return name
+
+
+def resolve_slack_mentions_in_text(client, text: str) -> str:
+    """
+    Mengubah tag mentah `<@U12345>` menjadi `@Nama Asli` dan `<#C12345|channel>` menjadi `#channel`
+    agar AI maupun pembaca rekap mengetahui secara persis siapa yang berbicara kepada siapa.
+    """
+    if not text:
+        return ""
+
+    def _replace_user(match):
+        uid = match.group(1)
+        return f"@{get_user_display_name(client, uid)}"
+
+    resolved = re.sub(r"<@(U[A-Z0-9]+)>", _replace_user, text)
+    resolved = re.sub(r"<#C[A-Z0-9]+\|([^>]+)>", r"#\1", resolved)
+    return resolved.strip()
+
+
 def _collect_and_summarize_channels_once(
     client,
     oldest_ts: float,
     latest_ts: float,
     window_label: str,
-    ask_grok_fn=None
-) -> Dict[str, str]:
+    ask_grok_fn=None,
+    is_on_demand_test: bool = False
+):
     """
-    PER-CHANNEL CACHING & SMART IDLE SKIP:
-    1. Mengambil pesan dari setiap channel tempat bot berada HANYA dalam rentang waktu [oldest_ts, latest_ts].
-    2. Jika suatu channel tidak memiliki diskusi baru di jendela waktu tersebut -> 0 Token (dilewati).
-    3. Jika suatu channel memiliki diskusi aktif -> Diringkas cukup 1 KALI SAJA oleh Grok (dengan `enable_tools=False`),
-       lalu hasil ringkasannya disimpan di dictionary `channel_summaries[channel_id]` untuk didistribusikan ke
-       5 Eksekutif sesuai hak keanggotaan masing-masing (`verify_user_channel_membership`).
-       Menghemat >80% kuota token API dibanding memanggil AI 5 kali untuk channel yang sama!
+    PER-CHANNEL CACHING + 0-TOKEN PERSONAL MENTION TRACKER:
+    1. Mengambil pesan channel DAN balasan thread aktif dalam 1 kali tarikan per channel.
+    2. Menyertakan `[Jam WIB] Nama Pengirim` serta `@Nama_Yang_Di-tag` secara utuh.
+    3. Mengekstrak daftar pesan/mention yang secara spesifik ditujukan kepada masing-masing Eksekutif
+       dalam 24 jam terakhir beserta status apakah sudah dibalas atau masih menunggu arahan (0 Token Python!).
+    4. Merangkum diskusi tiap channel aktif 1 KALI SAJA menggunakan Grok (`enable_tools=False`) dengan
+       instruksi detail: Siapa menyampaikan apa kepada siapa, konteks lengkap, dan Action Items.
     """
     ch_map = get_workspace_channels_map(client)
     bot_channels = []
@@ -664,44 +717,166 @@ def _collect_and_summarize_channels_once(
         pass
 
     channel_summaries: Dict[str, str] = {}
+    personal_mentions_by_exec: Dict[str, List[Dict[str, Any]]] = {uid: [] for uid in PILOT_EXECUTIVES}
+    mention_oldest_ts = min(oldest_ts, latest_ts - 86400)
 
     for ch in bot_channels:
         cid = ch["id"]
         cname = ch["name"]
         try:
+            # Ambil 40 pesan terakhir di channel agar thread lama yang baru dibalas tetap tertangkap
             h_res = client.conversations_history(
                 channel=cid,
-                oldest=str(oldest_ts),
-                latest=str(latest_ts),
-                inclusive=True,
-                limit=35
+                limit=40
             )
-            msgs = h_res.get("messages", [])
-            cleaned_lines = []
-            for m in reversed(msgs):
-                if m.get("bot_id") or m.get("user") == bot_uid or m.get("subtype"):
-                    continue
-                txt = re.sub(r"<@[A-Z0-9]+>", "", m.get("text", "")).strip()
-                if len(txt) >= 10:
-                    cleaned_lines.append(f"- {txt[:200]}")
-
-            if not cleaned_lines:
+            raw_msgs = h_res.get("messages", [])
+            if not raw_msgs:
                 continue
 
-            recent_lines = cleaned_lines[-10:]
+            # Kumpulkan seluruh pesan (termasuk balasan di dalam thread aktif) dalam 24 jam terakhir
+            recent_24h_events: List[Dict[str, Any]] = []
+            for m in reversed(raw_msgs):
+                m_ts = float(m.get("ts", 0) or 0)
+                latest_reply_ts = float(m.get("latest_reply", 0) or 0)
+                reply_count = int(m.get("reply_count", 0) or 0)
+
+                if mention_oldest_ts <= m_ts <= latest_ts:
+                    recent_24h_events.append({
+                        "msg": m,
+                        "is_thread_reply": False,
+                        "parent_user": m.get("user", ""),
+                        "thread_ts": m.get("thread_ts") or m.get("ts")
+                    })
+
+                # Jika pesan ini memiliki thread yang aktif dalam 24 jam terakhir, ambil isi thread-nya
+                if reply_count > 0 and latest_reply_ts >= mention_oldest_ts:
+                    try:
+                        t_res = client.conversations_replies(
+                            channel=cid,
+                            ts=m.get("ts"),
+                            limit=25
+                        )
+                        t_msgs = t_res.get("messages", [])
+                        parent_user = m.get("user", "")
+                        for tm in t_msgs[1:]:  # lewati parent karena sudah dicek di atas
+                            tm_ts = float(tm.get("ts", 0) or 0)
+                            if mention_oldest_ts <= tm_ts <= latest_ts:
+                                recent_24h_events.append({
+                                    "msg": tm,
+                                    "is_thread_reply": True,
+                                    "parent_user": parent_user,
+                                    "thread_ts": m.get("ts"),
+                                    "all_thread_msgs": t_msgs
+                                })
+                    except Exception as te:
+                        logger.debug(f"Gagal membaca thread replies di #{cname}: {te}")
+
+            # Urutkan berdasarkan timestamp kronologis
+            recent_24h_events.sort(key=lambda x: float(x["msg"].get("ts", 0) or 0))
+
+            human_24h_events = []
+            for ev in recent_24h_events:
+                m = ev["msg"]
+                if m.get("bot_id") or m.get("user") == bot_uid or m.get("subtype"):
+                    continue
+                raw_txt = (m.get("text") or "").strip()
+                if len(raw_txt) < 3:
+                    continue
+                human_24h_events.append(ev)
+
+            if not human_24h_events:
+                continue
+
+            cleaned_window_lines = []
+            cleaned_24h_lines = []
+
+            for idx, ev in enumerate(human_24h_events):
+                m = ev["msg"]
+                sender_uid = m.get("user", "")
+                sender_name = get_user_display_name(client, sender_uid)
+                m_ts = float(m.get("ts", 0) or 0)
+                dt_wib = datetime.datetime.fromtimestamp(m_ts, tz=WIB_TZ)
+                time_str = dt_wib.strftime("%H:%M")
+
+                raw_txt = (m.get("text") or "").strip()
+                resolved_txt = resolve_slack_mentions_in_text(client, raw_txt)
+                one_line_txt = re.sub(r"\s+", " ", resolved_txt)
+
+                thread_badge = " (Balasan Thread)" if ev.get("is_thread_reply") else ""
+                formatted_line = f"- [{time_str} WIB] {sender_name}{thread_badge}: {one_line_txt[:450]}"
+                cleaned_24h_lines.append(formatted_line)
+                if m_ts >= oldest_ts:
+                    cleaned_window_lines.append(formatted_line)
+
+                # Deteksi apakah pesan ini ditujukan / me-mention salah satu Pilot Executive (0 Token Python)
+                mentioned_execs = detect_executive_mentions(raw_txt, sender_id=sender_uid)
+                mentioned_uids = {ep["user_id"] for ep in mentioned_execs}
+
+                # Jika ini balasan di thread milik seorang Eksekutif, masukkan juga sebagai pesan untuk Eksekutif tsb
+                parent_uid = ev.get("parent_user", "")
+                if ev.get("is_thread_reply") and parent_uid in PILOT_EXECUTIVES and parent_uid != sender_uid:
+                    mentioned_uids.add(parent_uid)
+
+                for target_exec_uid in mentioned_uids:
+                    # Cek apakah Eksekutif tersebut sudah membalas setelah pesan ini di channel/thread yang sama
+                    has_replied = False
+                    for later_ev in human_24h_events[idx + 1:]:
+                        later_m = later_ev["msg"]
+                        if later_m.get("user") == target_exec_uid:
+                            has_replied = True
+                            break
+                    if not has_replied and ev.get("all_thread_msgs"):
+                        for tm in ev["all_thread_msgs"]:
+                            if float(tm.get("ts", 0) or 0) > m_ts and tm.get("user") == target_exec_uid:
+                                has_replied = True
+                                break
+
+                    permalink = ""
+                    try:
+                        p_res = client.chat_getPermalink(channel=cid, message_ts=m.get("ts"))
+                        permalink = p_res.get("permalink", "")
+                    except Exception:
+                        pass
+
+                    personal_mentions_by_exec[target_exec_uid].append({
+                        "channel_id": cid,
+                        "channel_name": cname,
+                        "sender_id": sender_uid,
+                        "sender_name": sender_name,
+                        "time_str": time_str,
+                        "text": one_line_txt[:380],
+                        "is_thread_reply": ev.get("is_thread_reply", False),
+                        "has_replied": has_replied,
+                        "permalink": permalink,
+                        "ts": m_ts
+                    })
+
+            # Gunakan pesan di jendela waktu [oldest_ts, latest_ts]; jika sedang uji manual (on-demand) dan jendela sempit kosong, gunakan 24 jam terakhir
+            target_lines = cleaned_window_lines if cleaned_window_lines else (cleaned_24h_lines if is_on_demand_test else [])
+            if not target_lines:
+                continue
+
+            recent_lines = target_lines[-18:]
             raw_snippet = "\n".join(recent_lines)
 
-            # Jika hanya ada 1-2 pesan pendek atau tidak ada ask_grok_fn, format langsung dengan Python (0 Token!)
-            if len(recent_lines) <= 2 or not ask_grok_fn:
-                channel_summaries[cid] = f"• *#{cname}* ({len(cleaned_lines)} pesan):\n" + "\n".join(f"  {l}" for l in recent_lines)
+            if not ask_grok_fn:
+                channel_summaries[cid] = (
+                    f"📌 *Saluran #{cname}* ({len(target_lines)} pesan aktif):\n"
+                    + "\n".join(f"  {l}" for l in recent_lines)
+                )
             else:
-                # Rangkum 1 kali saja per channel aktif menggunakan Grok (enable_tools=False)
+                # Rangkum 1 kali saja per channel aktif menggunakan Grok (enable_tools=False) namun dengan konteks LENGKAP & NAMA JELAS
                 prompt = [
                     {
                         "role": "system",
                         "content": (
-                            f"Ringkas diskusi dari channel #{cname} ({window_label}) berikut menjadi 2-3 poin bullet singkat "
-                            "beserta Action Item (jika ada). Gunakan format Slack mrkdwn (*bold* satu bintang, tanpa tabel pipa)."
+                            f"Anda adalah Executive Co-Pilot CDPK HQ. Buat rangkuman eksekutif yang LENGKAP, JELAS, dan TAJAM "
+                            f"untuk diskusi di saluran #{cname} ({window_label}) berikut.\n"
+                            "ATURAN WAJIB:\n"
+                            "1. Sebutkan NAMA PENGIRIM dan SIAPA YANG DITUJU/DI-MENTION secara eksplisit (misal: *Pak Gama* menyampaikan kepada *@Pak Adrian* mengenai..., atau *Ilham* melaporkan...).\n"
+                            "2. Jelaskan KONTEKS LENGKAP pembahasan (sebutkan nama produk/proyek/klien, angka/nominal, kendala teknis, atau dokumen yang dibahas — JANGAN terlalu abstrak/umum).\n"
+                            "3. Cantumkan *Status / Action Item* secara jelas: apa tindak lanjut yang dibutuhkan dan siapa yang ditunggu arahan/keputusannya.\n"
+                            "4. Gunakan format Slack mrkdwn (*bold* satu bintang, bullet `•`, tanpa tabel pipa)."
                         )
                     },
                     {
@@ -713,11 +888,11 @@ def _collect_and_summarize_channels_once(
                     ch_sum = ask_grok_fn(prompt, client=client, channel=None, thread_ts=None, user_id=None, enable_tools=False)
                 except TypeError:
                     ch_sum = ask_grok_fn(prompt, client=client, channel=None, thread_ts=None, user_id=None)
-                channel_summaries[cid] = f"📌 *Saluran #{cname}* ({len(cleaned_lines)} pesan aktif):\n{ch_sum.strip()}"
+                channel_summaries[cid] = f"📌 *Saluran #{cname}* ({len(target_lines)} pesan aktif):\n{ch_sum.strip()}"
         except Exception as e:
             logger.debug(f"Gagal memproses incremental history untuk #{cname} ({cid}): {e}")
 
-    return channel_summaries
+    return channel_summaries, personal_mentions_by_exec
 
 
 def send_scheduled_executive_digest(
@@ -727,7 +902,8 @@ def send_scheduled_executive_digest(
     target_only_uid: Optional[str] = None
 ):
     """
-    Mengirimkan Executive Briefing & Digest pada 3 jadwal harian dengan Incremental Time-Window & Per-Channel Caching:
+    Mengirimkan Executive Briefing & Digest pada 3 jadwal harian dengan Incremental Time-Window,
+    Per-Channel Caching, dan 0-Token Personal Mention & Pending Reply Tracker:
     - `slot="morning"` (09:00 WIB): Morning Kick-Off, Jadwal Hari Ini (0 Token) + Update Pagi (00:00 - 09:00 WIB).
     - `slot="midday"`  (13:30 WIB): Mid-Day Executive Pulse, Rekap Diskusi Sesi Pagi (09:00 - 13:30 WIB) + Agenda Siang/Sore.
     - `slot="eod"`     (18:00 WIB): End-of-Day Executive Digest, Rekap Diskusi Sesi Siang-Sore (13:30 - 18:00 WIB) & Action Items.
@@ -741,33 +917,34 @@ def send_scheduled_executive_digest(
     start_1330 = now.replace(hour=13, minute=30, second=0, microsecond=0).timestamp()
     now_ts = now.timestamp()
 
-    # Tentukan Incremental Time-Window berdasarkan slot (dan fallback cerdas jika diuji on-demand di luar jamnya)
+    # Tentukan Incremental Time-Window berdasarkan slot
     if slot == "morning":
         oldest_ts = start_00
         latest_ts = now_ts
-        window_label = "Sesi Pagi (00:00 – 09:00 WIB)"
-        header_title = f"☀️ *[MORNING EXECUTIVE BRIEFING & KICK-OFF — 09:00 WIB]*"
+        window_label = "Sesi Pagi (00:00 – 09:00 WIB)" if now.hour <= 10 else "Hari Ini (Sejak 00:00 WIB)"
+        header_title = "☀️ *[MORNING EXECUTIVE BRIEFING & KICK-OFF — 09:00 WIB]*"
         greeting_word = "Selamat pagi"
     elif slot == "midday":
         oldest_ts = start_09 if now_ts > start_09 else start_00
         latest_ts = now_ts
         window_label = "Sesi Pagi – Siang (09:00 – 13:30 WIB)"
-        header_title = f"🕜 *[MID-DAY EXECUTIVE PULSE — 13:30 WIB]*"
+        header_title = "🕜 *[MID-DAY EXECUTIVE PULSE — 13:30 WIB]*"
         greeting_word = "Selamat siang"
     else:  # eod (18:00 WIB)
         oldest_ts = start_1330 if now_ts > start_1330 else start_00
         latest_ts = now_ts
         window_label = "Sesi Siang – Sore (13:30 – 18:00 WIB)" if now_ts > start_1330 else "Hari Ini"
-        header_title = f"🌇 *[END-OF-DAY EXECUTIVE DIGEST — 18:00 WIB]*"
+        header_title = "🌇 *[END-OF-DAY EXECUTIVE DIGEST — 18:00 WIB]*"
         greeting_word = "Selamat sore"
 
-    # 1. Rangkum setiap channel aktif CUKUP 1 KALI SAJA (Per-Channel Caching)
-    per_channel_cache = _collect_and_summarize_channels_once(
+    # 1. Rangkum setiap channel aktif CUKUP 1 KALI SAJA + ekstrak Personal Mentions (0 Token Python)
+    per_channel_cache, personal_mentions_by_exec = _collect_and_summarize_channels_once(
         client=client,
         oldest_ts=oldest_ts,
         latest_ts=latest_ts,
         window_label=window_label,
-        ask_grok_fn=ask_grok_fn
+        ask_grok_fn=ask_grok_fn,
+        is_on_demand_test=bool(target_only_uid)
     )
 
     # 2. Distribusikan ke masing-masing Pilot Executive dengan filter Zero-Trust Channel Membership
@@ -775,7 +952,29 @@ def send_scheduled_executive_digest(
 
     for exec_uid, prof in targets.items():
         try:
-            # Filter channel yang diikuti secara resmi oleh eksekutif ini
+            # A. Seksi 1: Pesan & Mention Langsung untuk Eksekutif ini (Zero-Trust Filtered)
+            raw_personal_list = personal_mentions_by_exec.get(exec_uid, [])
+            allowed_personal_lines = []
+            for pm in raw_personal_list:
+                if verify_user_channel_membership(client, exec_uid, pm["channel_id"]):
+                    status_badge = (
+                        "✅ _Sudah Anda balas_"
+                        if pm["has_replied"]
+                        else "⏳ *Menunggu Balasan / Arahan Anda*"
+                    )
+                    link_str = f" • <{pm['permalink']}|Lihat Pesan>" if pm.get("permalink") else ""
+                    reply_tag = " _( di Thread)_" if pm.get("is_thread_reply") else ""
+                    allowed_personal_lines.append(
+                        f"• *Dari:* *{pm['sender_name']}* di *#{pm['channel_name']}*{reply_tag} ({pm['time_str']} WIB) — {status_badge}{link_str}\n"
+                        f"  > _\"{pm['text']}\"_"
+                    )
+
+            if allowed_personal_lines:
+                personal_section = "\n".join(allowed_personal_lines)
+            else:
+                personal_section = f"• _Tidak ada pesan atau mention langsung yang tertunda untuk {prof['short_name']} pada rentang waktu ini._"
+
+            # B. Seksi 2: Detail Rekap Diskusi per Saluran (Zero-Trust Filtered)
             allowed_ch_blocks = []
             for cid, summary_text in per_channel_cache.items():
                 if verify_user_channel_membership(client, exec_uid, cid):
@@ -784,9 +983,9 @@ def send_scheduled_executive_digest(
             if allowed_ch_blocks:
                 discussion_section = "\n\n".join(allowed_ch_blocks)
             else:
-                discussion_section = f"• _Belum terdapat diskusi baru yang memerlukan tindak lanjut pada rentang {window_label} di saluran yang Anda ikuti._"
+                discussion_section = f"• _Belum terdapat diskusi baru pada rentang {window_label} di saluran yang Anda ikuti._"
 
-            # Ambil jadwal agenda & pengingat lokal (0 Token Python Parser)
+            # C. Seksi 3: Jadwal Agenda & Pengingat Lokal (0 Token Python Parser)
             sched = parse_local_schedules_zero_token(target_user_id=exec_uid)
             today_items = sched.get("today", [])
             if today_items:
@@ -797,8 +996,10 @@ def send_scheduled_executive_digest(
 
             msg_text = (
                 f"{header_title}\n"
-                f"{greeting_word}, *{prof['short_name']}*! Berikut adalah laporan berkala & kesiapan agenda Anda untuk *{day_str}*:\n\n"
-                f"📊 *REKAP DISKUSI SALURAN ({window_label}):*\n"
+                f"{greeting_word}, *{prof['short_name']}*! Berikut adalah laporan lengkap aktivitas saluran & pesan untuk Anda pada *{day_str}*:\n\n"
+                f"🎯 *PESAN & MENTION LANGSUNG UNTUK ANDA ({ len(allowed_personal_lines) } Pesan):*\n"
+                f"{personal_section}\n\n"
+                f"📊 *DETAIL REKAP DISKUSI PER SALURAN ({window_label}):*\n"
                 f"{discussion_section}\n\n"
                 f"📅 *JADWAL AGENDA & PENGINGAT HARI INI:*\n"
                 f"{agenda_section}\n\n"
