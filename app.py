@@ -1379,6 +1379,154 @@ def handle_direct_message(event, say, client):
     except Exception:
         pass
 
+def build_home_tab_view(user_id: str, user_name: str = "Rekan Kerja", role_level: str = "STANDARD") -> dict:
+    """Membangun tampilan Block Kit untuk halaman Home Tab Grok CDPK di Slack secara aman tanpa membocorkan data konfidensial."""
+    if role_level == "DIREKSI":
+        role_badge = "👑 *Direksi CDPK HQ (Tier 1 — All Access)*"
+    elif role_level == "CORP_SECRETARY":
+        role_badge = "⚖️ *Corporate Secretary (Tier Khusus)*"
+    elif role_level == "FINANCE":
+        role_badge = "💼 *Finance & Accounting (Tier 2)*"
+    else:
+        role_badge = "👥 *Anggota Tim CDPK HQ (Tier 3 — Operasional)*"
+
+    blocks = [
+        {
+            "type": "header",
+            "text": {
+                "type": "plain_text",
+                "text": "🤖 Grok CDPK — AI Assistant & Strategic Co-Pilot",
+                "emoji": True
+            }
+        },
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": (
+                    f"Halo, *{user_name}*! 👋 Selamat datang di *Grok CDPK*.\n\n"
+                    "Platform asisten kecerdasan buatan (AI) resmi yang dirancang khusus untuk mendukung operasional, "
+                    "rekayasa teknis telekomunikasi nirkabel, otomatisasi dokumen bisnis, dan integrasi arsip digital di lingkungan "
+                    "*PT Citradata Purnakharisma* & *PT Teknologi Chayani Harsa*."
+                )
+            }
+        },
+        {
+            "type": "context",
+            "elements": [
+                {
+                    "type": "mrkdwn",
+                    "text": f"👤 *Profil Anda:* {user_name}  |  🛡️ *Wewenang Akses:* {role_badge}"
+                }
+            ]
+        },
+        {"type": "divider"},
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": (
+                    "*✨ KAPABILITAS UTAMA GROK CDPK*\n\n"
+                    "• 📡 *Solusi Telekomunikasi & Industrial:*\n"
+                    "  Menguasai portofolio resmi: *Motorola Solutions* (MOTOTRBO DMR, repeater SLR5000/8000), "
+                    "*i.Safe Mobile* (Smartphone & tablet Intrinsically Safe ATEX/IECEx Zone 1/21 & 2/22), "
+                    "*FMTCS* (Active Optical DAS OMU/ORU, RF components), *RugGear*, *POCStar*, *Tramigo*, dan *Skywoods*.\n\n"
+                    "• 📑 *Otomatisasi Dokumen Eksekutif (Excel & Word):*\n"
+                    "  Dapat membuat dan mengunggah langsung file *Bill of Materials (BOM) Excel (.xlsx)* berformula rapi "
+                    "serta draf *Proposal Solusi Teknis Word (.docx)* ke dalam obrolan Slack.\n\n"
+                    "• 📂 *Integrasi Berkas Google Drive CDPK:*\n"
+                    "  Pencarian instan dan ekstraksi data dari Shared Drives resmi Citradata & Techsolutions (datasheet, brosur produk, manual, dan SOP resmi).\n\n"
+                    "• ⏰ *AI Schedule & Reminder Co-Pilot:*\n"
+                    "  Menjadwalkan pengingat otomatis 24/7 untuk diri sendiri, rekan tim, atau channel proyek (contoh: jadwal tender, follow-up klien, meeting evaluasi).\n\n"
+                    "• 🌐 *Riset & Analisis Pasar Terverifikasi:*\n"
+                    "  Pencarian data web real-time untuk regulasi frekuensi SDPPI/Kominfo, komparasi harga pasar, dan komparasi rugged komersial vs Ex-proof dengan tautan sumber referensi transparan."
+                )
+            }
+        },
+        {"type": "divider"},
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": (
+                    "*📖 PANDUAN PENGGUNAAN & CARA BERINTERAKSI*\n\n"
+                    "1. 💬 *Pesan Langsung (Direct Message / DM):*\n"
+                    "   Buka tab *Messages* (di sebelah tab Home ini) untuk konsultasi privat 1-on-1 dengan Grok. "
+                    "Ruang chat privat aman dan tidak dapat dilihat oleh anggota lain.\n\n"
+                    "2. 📢 *Di Saluran Terbuka (Public / Private Channel):*\n"
+                    "   Cukup mention `@Grok CDPK` diikuti pertanyaan atau instruksi Anda di channel mana pun tempat bot diundang.\n\n"
+                    "3. 🧵 *Percakapan Berkelanjutan (Thread):*\n"
+                    "   Balas pesan Grok di thread (*Reply in thread*) untuk melanjutkan diskusi secara mendalam dengan memori konteks utuh."
+                )
+            }
+        },
+        {"type": "divider"},
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": (
+                    "*💡 CONTOH INSTRUKSI YANG BISA LANGSUNG DICOBA*\n\n"
+                    "• 🔍 *Spesifikasi Perangkat:*\n"
+                    "  _\"Jelaskan spesifikasi dan sertifikasi ATEX Zone 1/21 dari smartphone i.Safe Mobile IS540.1.\"_\n\n"
+                    "• 🏗️ *Desain Arsitektur DAS:*\n"
+                    "  _\"Rancang topologi sistem active optical DAS FMTCS untuk gedung 15 lantai dengan repeater Motorola SLR5000.\"_\n\n"
+                    "• 📊 *Generate BOM Excel:*\n"
+                    "  _\"Buatkan estimasi file BOM Excel untuk pengadaan 20 unit radio Motorola R7 dan 2 unit repeater SLR8000.\"_\n\n"
+                    "• 📁 *Pencarian Dokumen Drive:*\n"
+                    "  _\"Cari datasheet perangkat i.Safe Mobile di Google Drive Citradata.\"_\n\n"
+                    "• ⏰ *Penjadwalan Reminder:*\n"
+                    "  _\"Ingatkan saya besok jam 09:00 WIB untuk follow up penawaran proyek sistem radio.\"_"
+                )
+            }
+        },
+        {"type": "divider"},
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": (
+                    "*🔒 KEBIJAKAN PRIVASI & KEAMANAN DATA PERUSAHAAN (DLP)*\n\n"
+                    "• 🛡️ *Role-Based Access Control (RBAC):* Setiap permintaan data diverifikasi secara otomatis sesuai hak akses dan wewenang pengguna di organisasi CDPK HQ.\n"
+                    "• 🔐 *Proteksi Data Konfidensial:* Dokumen konfidensial (Direksi, Legalitas, Corporate, dan Finance) tidak dapat ditampilkan di channel terbuka umum dan hanya dapat diakses melalui saluran khusus terverifikasi atau via Direct Message (DM) pribadi.\n"
+                    "• 📑 *Integritas Arsip:* Seluruh rujukan data operasional internal bersumber langsung dari basis data resmi CDPK HQ dan Google Drive terverifikasi."
+                )
+            }
+        },
+        {"type": "divider"},
+        {
+            "type": "context",
+            "elements": [
+                {
+                    "type": "mrkdwn",
+                    "text": "🟢 *Status Sistem:* Aktif 24/7 | Terhubung ke Basis Data Resmi CDPK HQ & Google Drive | Powered by xAI Grok & Gemini AI"
+                }
+            ]
+        }
+    ]
+
+    return {"type": "home", "blocks": blocks}
+
+@app.event("app_home_opened")
+def handle_app_home_opened(event, client, logger):
+    """
+    Menampilkan halaman Home Tab yang elegan, informatif, dan aman
+    setiap kali anggota tim membuka tab Home Grok CDPK di Slack.
+    """
+    user_id = event.get("user")
+    if not user_id:
+        return
+
+    try:
+        user_access = get_user_access_level(client, user_id)
+        user_name = user_access.get("name", "Rekan Kerja")
+        role_level = user_access.get("level", "STANDARD")
+        view = build_home_tab_view(user_id, user_name=user_name, role_level=role_level)
+        client.views_publish(user_id=user_id, view=view)
+        logger.info(f"Home tab berhasil diperbarui untuk user: {user_name} ({user_id})")
+    except Exception as e:
+        logger.error(f"Gagal mempublikasikan Home Tab untuk user {user_id}: {e}")
+
 class HealthCheckHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
