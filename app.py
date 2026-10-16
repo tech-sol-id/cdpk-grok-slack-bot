@@ -23,8 +23,9 @@ from reminder_engine import (
     REMINDER_TOOLS
 )
 from web_search_engine import perform_web_search, read_web_page_content, WEB_TOOLS
+from gdrive_engine import search_google_drive, read_google_drive_file, GDRIVE_TOOLS
 
-ALL_TOOLS = DOC_TOOLS + REMINDER_TOOLS + WEB_TOOLS
+ALL_TOOLS = DOC_TOOLS + REMINDER_TOOLS + WEB_TOOLS + GDRIVE_TOOLS
 
 # Muat variabel environment dari .env
 load_dotenv()
@@ -333,13 +334,27 @@ def format_slack_text(text: str) -> str:
 def ask_grok(messages: list, client=None, channel: str = None, thread_ts: str = None, user_id: str = None) -> str:
     """Mengirim pesan ke xAI Grok API dengan dukungan Tool Calling untuk Dokumen & Reminder."""
     try:
-        response = ai_client.chat.completions.create(
-            model=XAI_MODEL,
-            messages=messages,
-            tools=ALL_TOOLS,
-            tool_choice="auto",
-            temperature=0.7,
-        )
+        response = None
+        for attempt in range(3):
+            try:
+                response = ai_client.chat.completions.create(
+                    model=XAI_MODEL,
+                    messages=messages,
+                    tools=ALL_TOOLS,
+                    tool_choice="auto",
+                    temperature=0.7,
+                )
+                break
+            except Exception as e:
+                if "429" in str(e) or "capacity" in str(e).lower():
+                    logger.warning(f"xAI API 429 capacity spike (attempt {attempt+1}/3), retrying in 2.5s...")
+                    time.sleep(2.5)
+                else:
+                    raise e
+
+        if not response:
+            return "⚠️ Server Grok sedang mengalami lonjakan beban kapasitas sementara. Mohon coba ulangi dalam beberapa saat."
+
         msg = response.choices[0].message
 
         # Jika Grok memanggil tool (generate dokumen atau reminder)
@@ -449,17 +464,43 @@ def ask_grok(messages: list, client=None, channel: str = None, thread_ts: str = 
                     target_url = fn_args.get("url", "")
                     tool_output_str = read_web_page_content(target_url)
 
+                # 8. Tool Google Drive: Search Google Drive
+                elif fn_name == "search_google_drive":
+                    g_query = fn_args.get("query", "")
+                    g_acc = fn_args.get("account", "all")
+                    tool_output_str = search_google_drive(g_query, account=g_acc)
+
+                # 9. Tool Google Drive: Read Google Drive File
+                elif fn_name == "read_google_drive_file":
+                    fid = fn_args.get("file_id", "")
+                    g_acc = fn_args.get("account", "citradata")
+                    tool_output_str = read_google_drive_file(fid, account=g_acc)
+
                 tool_call_messages.append({
                     "role": "tool",
                     "tool_call_id": tc.id,
                     "content": tool_output_str
                 })
 
-            final_resp = ai_client.chat.completions.create(
-                model=XAI_MODEL,
-                messages=tool_call_messages,
-                temperature=0.7,
-            )
+            final_resp = None
+            for attempt in range(3):
+                try:
+                    final_resp = ai_client.chat.completions.create(
+                        model=XAI_MODEL,
+                        messages=tool_call_messages,
+                        temperature=0.7,
+                    )
+                    break
+                except Exception as e:
+                    if "429" in str(e) or "capacity" in str(e).lower():
+                        logger.warning(f"xAI final completion 429 spike (attempt {attempt+1}/3), retrying in 2.5s...")
+                        time.sleep(2.5)
+                    else:
+                        raise e
+
+            if not final_resp:
+                return "⚠️ Server Grok sedang mengalami lonjakan beban kapasitas sementara. Mohon coba ulangi dalam beberapa saat."
+
             content = final_resp.choices[0].message.content or ""
             if uploaded_notices:
                 content += "\n\n" + "\n".join(uploaded_notices)
@@ -827,7 +868,16 @@ def get_effective_system_prompt(user_access: dict = None, query: str = "") -> st
         "       • 🌐 *Informasi Tambahan dari Internet:* [Rincian data/harga pasar/regulasi hasil live web search]\n"
         "         └─ 🔗 *Tautan Referensi:* <https://sumber-website.com|Judul Halaman Web>\n"
         "     (Jika data seluruhnya dari internal CDPK atau seluruhnya dari internet, sampaikan sumbernya dengan tegas dan transparan beserta link tautannya jika dari web).\n"
-        "   - PROTEKSI PENGHEMAT TOKEN: Hasil web search dan ekstraksi URL telah dibatasi secara ringkas dan padat (~1.500 karakter). Olah data tersebut secara cerdas untuk menghasilkan jawaban eksekutif bernilai tinggi tanpa menghabiskan kuota token berlebih."
+        "   - PROTEKSI PENGHEMAT TOKEN: Hasil web search dan ekstraksi URL telah dibatasi secara ringkas dan padat (~1.500 karakter). Olah data tersebut secara cerdas untuk menghasilkan jawaban eksekutif bernilai tinggi tanpa menghabiskan kuota token berlebih.\n"
+        "12. GOOGLE DRIVE OPERATIONAL & KNOWLEDGE INTEGRATION (CDPK & TECHSOLUTIONS DRIVES):\n"
+        "   - PENCARIAN BERKAS GOOGLE DRIVE ('search_google_drive'):\n"
+        "     * Panggil tool ini jika pengguna meminta mencari berkas di Google Drive (contoh: 'cari file di Google Drive...', 'cek spreadsheet stok di Drive', 'carikan datasheet P8668i di Drive Citradata', 'cari dokumen PHE ONWJ di Drive').\n"
+        "     * Gunakan parameter 'account': 'citradata' (default), 'techsolutions', atau 'all' untuk mencari di kedua organisasi CDPK HQ.\n"
+        "   - PEMBACAAN ISI DOKUMEN/SPREADSHEET ('read_google_drive_file'):\n"
+        "     * Panggil tool ini HANYA JIKA pengguna secara spesifik meminta Anda membaca, menganalisis, merangkum, atau mengecek isi data di dalam berkas/spreadsheet/PDF tersebut.\n"
+        "     * Jangan panggil tool ini jika pengguna hanya ingin mencari letak berkas atau link dokumennya.\n"
+        "   - TAUTAN GOOGLE DRIVE LANGSUNG: Selalu sertakan link clickable `<URL|Nama File>` yang diperoleh dari hasil pencarian agar tim dapat langsung membuka dokumen tersebut di browser Slack dengan sekali klik.\n"
+        "   - MEKANISME HEMAT TOKEN (TOKEN-GUARD): Hasil pencarian Drive hanya mengembalikan metadata ringkas (~150-250 token). Pembacaan file Google Spreadsheet/Doc/PDF dipangkas ketat maksimal 1.800 karakter (~350-400 token) sehingga tidak menguras kuota token API."
     )
 
     prompt_parts = [
