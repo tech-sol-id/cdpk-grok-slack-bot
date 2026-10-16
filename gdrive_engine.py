@@ -100,13 +100,27 @@ def get_access_token(account_key: str) -> Optional[str]:
 
     return None
 
-def search_google_drive(query: str, account: str = "citradata", max_results: int = 5) -> str:
+def search_google_drive(query: str, account: str = "citradata", max_results: int = 5, user_level: str = "STANDARD") -> str:
     """
     Mencari file dan dokumen di Google Drive Citradata & Techsolutions
-    dengan proteksi Token-Guard (output dibatasi maksimal 1.500 karakter / ~300 token).
+    dengan proteksi Token-Guard dan penegakan Hak Akses 3-Tier RBAC.
     """
     if not query:
         return "Query pencarian Google Drive tidak boleh kosong."
+
+    # --- PENEGAKAN HAK AKSES DATA RBAC 3-TIER ---
+    q_lower = query.lower()
+    if user_level != "DIREKSI":
+        # 1. Dokumen Gaji & Khusus Direksi hanya boleh diakses Direksi
+        if any(w in q_lower for w in ["gaji", "payroll", "salary", "upah", "dividen"]):
+            return "🔒 *Akses Ditolak:* Dokumen penggajian dan kompensasi bersifat rahasia dan hanya dapat diakses oleh Direksi CDPK HQ."
+        if any(w in q_lower for w in ["khusus direksi", "rapat direksi", "direksi only", "board"]):
+            return "🔒 *Akses Ditolak:* Dokumen khusus Direksi hanya dapat diakses oleh jajaran Direksi CDPK HQ."
+
+        # 2. Untuk Staf Umum / Standard: Dilarang akses data finansial/neraca/laba rugi
+        if user_level == "STANDARD":
+            if any(w in q_lower for w in ["laporan keuangan", "neraca", "laba rugi", "kas kecil", "rekening", "finance"]):
+                return "🔒 *Akses Ditolak:* Dokumen finansial dan akuntansi perusahaan bersifat konfidensial dan hanya dapat diakses oleh Tim Finance atau Direksi."
 
     clean_query = query.strip().replace("'", "\\'")
     accounts_to_check = []
@@ -200,12 +214,24 @@ def search_google_drive(query: str, account: str = "citradata", max_results: int
                 except Exception:
                     pass
 
-    if not all_matches:
-        return f"Tidak ditemukan berkas di Google Drive CDPK dengan kata kunci pencarian '{clean_query}'."
+    # Filter hasil agar file sensitif tidak bocor ke akun non-otoritas
+    filtered_matches = []
+    for item in all_matches:
+        fn_low = item["name"].lower()
+        if user_level != "DIREKSI":
+            if any(w in fn_low for w in ["gaji", "payroll", "salary", "upah", "dividen", "khusus direksi"]):
+                continue
+            if user_level == "STANDARD":
+                if any(w in fn_low for w in ["laporan keuangan", "neraca", "laba rugi", "kas kecil", "rekening"]):
+                    continue
+        filtered_matches.append(item)
+
+    if not filtered_matches:
+        return f"Tidak ditemukan berkas publik di Google Drive CDPK yang sesuai dengan wewenang akses Anda untuk kata kunci '{clean_query}'."
 
     # Format keluaran rapi untuk Slack dengan pembatasan token ketat
     lines = [f"📂 Hasil pencarian berkas di Google Drive CDPK untuk '*{clean_query}*':\n"]
-    for idx, item in enumerate(all_matches[:max_results], 1):
+    for idx, item in enumerate(filtered_matches[:max_results], 1):
         # Format ukuran file
         size_str = ""
         try:
@@ -242,10 +268,10 @@ def search_google_drive(query: str, account: str = "citradata", max_results: int
     output = "\n".join(lines).strip()
     return output[:1500]
 
-def read_google_drive_file(file_id: str, account: str = "citradata", max_chars: int = 1800) -> str:
+def read_google_drive_file(file_id: str, account: str = "citradata", max_chars: int = 1800, user_level: str = "STANDARD") -> str:
     """
     Membaca dan mengekstrak isi teks/ringkasan data dari berkas Google Drive
-    (Google Sheet, Google Doc, PDF, atau Text) dengan Token-Guard (maksimal 1.800 karakter).
+    (Google Sheet, Google Doc, PDF, atau Text) dengan Token-Guard dan penegakan Hak Akses 3-Tier RBAC.
     """
     if not file_id:
         return "ID file Google Drive tidak boleh kosong."
@@ -286,7 +312,16 @@ def read_google_drive_file(file_id: str, account: str = "citradata", max_chars: 
     mime = meta.get("mimeType", "")
     link = meta.get("webViewLink", "")
 
-    logger.info(f"Membaca file Drive '{fname}' ({mime})")
+    # --- PENEGAKAN HAK AKSES DATA RBAC 3-TIER PADA BERKAS ---
+    fn_low = fname.lower()
+    if user_level != "DIREKSI":
+        if any(w in fn_low for w in ["gaji", "payroll", "salary", "upah", "dividen", "khusus direksi"]):
+            return f"🔒 *Akses Ditolak:* Dokumen '*{fname}*' merupakan berkas konfidensial Direksi/Penggajian dan hanya dapat diakses oleh Direksi CDPK HQ."
+        if user_level == "STANDARD":
+            if any(w in fn_low for w in ["laporan keuangan", "neraca", "laba rugi", "kas kecil", "rekening"]):
+                return f"🔒 *Akses Ditolak:* Dokumen '*{fname}*' bersifat konfidensial finansial dan hanya dapat diakses oleh Tim Finance atau Direksi CDPK HQ."
+
+    logger.info(f"Membaca file Drive '{fname}' ({mime}) [User Level: {user_level}]")
 
     # 2. Kasus A: Google Spreadsheet (Export ke CSV dan ambil baris awal)
     if mime == "application/vnd.google-apps.spreadsheet":

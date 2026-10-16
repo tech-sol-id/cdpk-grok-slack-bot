@@ -361,6 +361,8 @@ def ask_grok(messages: list, client=None, channel: str = None, thread_ts: str = 
         if msg.tool_calls:
             tool_call_messages = list(messages)
             tool_call_messages.append(msg)
+            u_access = get_user_access_level(client, user_id) if client and user_id else {"level": "STANDARD"}
+            u_level = u_access.get("level", "STANDARD")
             uploaded_notices = []
 
             for tc in msg.tool_calls:
@@ -468,13 +470,13 @@ def ask_grok(messages: list, client=None, channel: str = None, thread_ts: str = 
                 elif fn_name == "search_google_drive":
                     g_query = fn_args.get("query", "")
                     g_acc = fn_args.get("account", "all")
-                    tool_output_str = search_google_drive(g_query, account=g_acc)
+                    tool_output_str = search_google_drive(g_query, account=g_acc, user_level=u_level)
 
                 # 9. Tool Google Drive: Read Google Drive File
                 elif fn_name == "read_google_drive_file":
                     fid = fn_args.get("file_id", "")
                     g_acc = fn_args.get("account", "citradata")
-                    tool_output_str = read_google_drive_file(fid, account=g_acc)
+                    tool_output_str = read_google_drive_file(fid, account=g_acc, user_level=u_level)
 
                 tool_call_messages.append({
                     "role": "tool",
