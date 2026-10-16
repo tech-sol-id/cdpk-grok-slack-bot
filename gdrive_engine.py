@@ -11,6 +11,24 @@ logger = logging.getLogger("slack-grok-bot")
 # In-memory cache untuk OAuth access token agar tidak berulang kali memanggil OAuth endpoint
 _TOKEN_CACHE: Dict[str, Dict[str, Any]] = {}
 
+# ID Shared Drive khusus Direksi
+BOD_DRIVE_ID = "0AD2z884cgWxCUk9PVA"
+
+# Kelompok Kata Kunci Konfidensial DIREKSI SAJA
+DIREKSI_ONLY_KEYWORDS = [
+    "corporate", "direksi", "bod drive", "hrd", "personalia", "legalitas", "akta",
+    "gaji", "payroll", "salary", "upah", "dividen", "bonus", "pajak direksi", "saham"
+]
+
+# Kelompok Kata Kunci FINANCE & ORDER MANAGEMENT
+FINANCE_KEYWORDS = [
+    "finance", "accounting", "keuangan", "order management", "invoice", "faktur",
+    "kas kecil", "laba rugi", "neraca", "rekening", "po customer", "purchase order"
+]
+
+# Kelompok Dokumen UMUM Resmi CDPK HQ:
+# ATEX, FMTCS, i.Safe Mobile, IMS, Marketing, OPERATIONS, POCStar, SafeUEM, Sales, RugGear, dll.
+
 def get_account_credential(account_key: str) -> Optional[Dict[str, str]]:
     """
     Mengambil kredensial OAuth untuk akun tertentu:
@@ -100,43 +118,60 @@ def get_access_token(account_key: str) -> Optional[str]:
 
     return None
 
-def search_google_drive(query: str, account: str = "citradata", max_results: int = 5, user_level: str = "STANDARD") -> str:
+def search_google_drive(query: str, account: str = "all", max_results: int = 5, user_access: dict = None) -> str:
     """
-    Mencari file dan dokumen di Google Drive Citradata & Techsolutions
-    dengan proteksi Token-Guard dan penegakan Hak Akses 3-Tier RBAC.
+    Mencari file dan dokumen di Google Drive resmi CDPK HQ.
+    Ketentuan Hak Akses & Scope:
+    1. Akun Personal (adrian.kansil@gmail.com): DIBATASI KHUSUS HANYA UNTUK USER ADRIAN.
+    2. Scope Pencarian: HANYA Shared Drives / Team Drive untuk selain Adrian (DILARANG mencari di My Drive).
+    3. Klasifikasi Tier:
+       - DIREKSI: Dokumen Umum, Finance, Corporate, Direksi/BOD Drive, HRD, Personalia, Legalitas, Gaji.
+       - FINANCE: Dokumen Umum, Finance & Accounting, Order Management. (Dilarang Corporate/Direksi/HRD/Legalitas/Gaji).
+       - UMUM: HANYA Dokumen Umum (ATEX, FMTCS, i.Safe Mobile, IMS, Marketing, OPERATIONS, POCStar, SafeUEM, Sales, RugGear, dll).
     """
     if not query:
         return "Query pencarian Google Drive tidak boleh kosong."
 
-    # --- PENEGAKAN HAK AKSES DATA RBAC 3-TIER ---
-    q_lower = query.lower()
-    if user_level != "DIREKSI":
-        # 1. Dokumen Gaji & Khusus Direksi hanya boleh diakses Direksi
-        if any(w in q_lower for w in ["gaji", "payroll", "salary", "upah", "dividen"]):
-            return "🔒 *Akses Ditolak:* Dokumen penggajian dan kompensasi bersifat rahasia dan hanya dapat diakses oleh Direksi CDPK HQ."
-        if any(w in q_lower for w in ["khusus direksi", "rapat direksi", "direksi only", "board"]):
-            return "🔒 *Akses Ditolak:* Dokumen khusus Direksi hanya dapat diakses oleh jajaran Direksi CDPK HQ."
-
-        # 2. Untuk Staf Umum / Standard: Dilarang akses data finansial/neraca/laba rugi
-        if user_level == "STANDARD":
-            if any(w in q_lower for w in ["laporan keuangan", "neraca", "laba rugi", "kas kecil", "rekening", "finance"]):
-                return "🔒 *Akses Ditolak:* Dokumen finansial dan akuntansi perusahaan bersifat konfidensial dan hanya dapat diakses oleh Tim Finance atau Direksi."
+    user_access = user_access or {}
+    user_level = user_access.get("level", "STANDARD") or "STANDARD"
+    is_adrian = bool(
+        user_access.get("is_adrian") or
+        user_access.get("user_id") == "U0C2CR9NAF7" or
+        "adrian@citradata.id" in user_access.get("email", "").lower()
+    )
 
     clean_query = query.strip().replace("'", "\\'")
-    accounts_to_check = []
-    acc_lower = account.lower().strip()
+    q_lower = clean_query.lower()
 
-    if acc_lower in ["citradata", "kerja", "kantor", "cdpk"]:
-        accounts_to_check = [("citradata", "Citradata (adrian@citradata.id)")]
+    # --- PENEGAKAN HAK AKSES PADA QUERY INPUT ---
+    if user_level != "DIREKSI":
+        # Blocklist untuk selain Direksi (Finance & Umum)
+        if any(w in q_lower for w in DIREKSI_ONLY_KEYWORDS):
+            return "🔒 *Akses Ditolak:* Dokumen kelompok Corporate, Folder Direksi, HRD, Personalia, Legalitas, dan Penggajian (Gaji) bersifat konfidensial dan HANYA dapat diakses oleh jajaran Direksi CDPK HQ."
+
+        # Blocklist tambahan untuk Umum (Staf Biasa)
+        if user_level == "STANDARD":
+            if any(w in q_lower for w in FINANCE_KEYWORDS):
+                return "🔒 *Akses Ditolak:* Dokumen Finance & Accounting serta Order Management bersifat konfidensial dan hanya dapat diakses oleh Tim Finance atau Direksi CDPK HQ."
+
+    # --- PENEGAKAN AKUN PERSONAL (HANYA ADRIAN) ---
+    acc_lower = account.lower().strip()
+    if acc_lower in ["personal", "adrian"]:
+        if not is_adrian:
+            return "🔒 *Akses Ditolak:* Akun Google Drive Personal (adrian.kansil@gmail.com) dibatasi secara khusus dan HANYA boleh diakses oleh Pak Adrian."
+        accounts_to_check = [("personal", "Personal Adrian (adrian.kansil@gmail.com)")]
+    elif acc_lower in ["citradata", "kerja", "kantor", "cdpk"]:
+        accounts_to_check = [("citradata", "Citradata HQ")]
     elif acc_lower in ["techsolutions", "ts"]:
-        accounts_to_check = [("techsolutions", "Techsolutions (hq@techsolutions.id)")]
-    elif acc_lower in ["personal", "adrian"]:
-        accounts_to_check = [("personal", "Personal (adrian.kansil@gmail.com)")]
+        accounts_to_check = [("techsolutions", "Techsolutions")]
     else:  # default 'all'
         accounts_to_check = [
             ("citradata", "Citradata HQ"),
             ("techsolutions", "Techsolutions")
         ]
+        # Sertakan akun personal HANYA jika penanya adalah Pak Adrian
+        if is_adrian:
+            accounts_to_check.append(("personal", "Personal Adrian"))
 
     all_matches = []
 
@@ -146,7 +181,6 @@ def search_google_drive(query: str, account: str = "citradata", max_results: int
             continue
 
         headers = {"Authorization": f"Bearer {tok}"}
-        # Pola pencarian nama file terlebih dahulu
         drive_q = f"name contains '{clean_query}' and trashed = false"
 
         try:
@@ -155,8 +189,8 @@ def search_google_drive(query: str, account: str = "citradata", max_results: int
                 headers=headers,
                 params={
                     "q": drive_q,
-                    "fields": "files(id, name, mimeType, webViewLink, size, modifiedTime)",
-                    "pageSize": max_results,
+                    "fields": "files(id, name, mimeType, webViewLink, size, modifiedTime, driveId, teamDriveId)",
+                    "pageSize": max_results * 2,  # ambil buffer untuk filtering scope
                     "supportsAllDrives": "true",
                     "includeItemsFromAllDrives": "true",
                     "orderBy": "modifiedTime desc"
@@ -166,6 +200,12 @@ def search_google_drive(query: str, account: str = "citradata", max_results: int
             if r.status_code == 200:
                 files = r.json().get("files", [])
                 for f in files:
+                    drive_id = f.get("driveId") or f.get("teamDriveId")
+                    # PENEGAKAN ATURAN SCOPE:
+                    # User selain Adrian HANYA boleh mengakses Shared Drives / Team Drive (DILARANG My Drive)
+                    if not is_adrian and not drive_id:
+                        continue
+
                     all_matches.append({
                         "id": f.get("id"),
                         "name": f.get("name"),
@@ -173,6 +213,7 @@ def search_google_drive(query: str, account: str = "citradata", max_results: int
                         "link": f.get("webViewLink", ""),
                         "size": f.get("size", "0"),
                         "modified": f.get("modifiedTime", "")[:10],
+                        "driveId": drive_id,
                         "account": acc_label
                     })
             else:
@@ -180,57 +221,34 @@ def search_google_drive(query: str, account: str = "citradata", max_results: int
         except Exception as e:
             logger.warning(f"Error saat mencari file Drive di {acc_key}: {e}")
 
-    if not all_matches:
-        # Coba relaxed search jika kata kunci majemuk (ambil kata pertama)
-        words = clean_query.split()
-        if len(words) > 1:
-            first_word = words[0]
-            tok = get_access_token("citradata")
-            if tok:
-                try:
-                    r = requests.get(
-                        "https://www.googleapis.com/drive/v3/files",
-                        headers={"Authorization": f"Bearer {tok}"},
-                        params={
-                            "q": f"name contains '{first_word}' and trashed = false",
-                            "fields": "files(id, name, mimeType, webViewLink, size, modifiedTime)",
-                            "pageSize": 3,
-                            "supportsAllDrives": "true",
-                            "includeItemsFromAllDrives": "true"
-                        },
-                        timeout=10
-                    )
-                    if r.status_code == 200:
-                        for f in r.json().get("files", []):
-                            all_matches.append({
-                                "id": f.get("id"),
-                                "name": f.get("name"),
-                                "mimeType": f.get("mimeType", ""),
-                                "link": f.get("webViewLink", ""),
-                                "size": f.get("size", "0"),
-                                "modified": f.get("modifiedTime", "")[:10],
-                                "account": "Citradata HQ"
-                            })
-                except Exception:
-                    pass
-
-    # Filter hasil agar file sensitif tidak bocor ke akun non-otoritas
+    # --- PENEGAKAN HAK AKSES PADA DAFTAR BERKAS HASIL PENCARIAN ---
     filtered_matches = []
     for item in all_matches:
         fn_low = item["name"].lower()
+        drive_id = item.get("driveId")
+
+        # 1. Non-Direksi dilarang mengakses berkas di BOD Drive atau berkas dengan kata kunci Direksi/HRD/Legal/Gaji
         if user_level != "DIREKSI":
-            if any(w in fn_low for w in ["gaji", "payroll", "salary", "upah", "dividen", "khusus direksi"]):
+            if drive_id == BOD_DRIVE_ID:
                 continue
+            if any(w in fn_low for w in DIREKSI_ONLY_KEYWORDS):
+                continue
+
+            # 2. Staf Umum dilarang mengakses berkas kategori Finance & Order Management
             if user_level == "STANDARD":
-                if any(w in fn_low for w in ["laporan keuangan", "neraca", "laba rugi", "kas kecil", "rekening"]):
+                if any(w in fn_low for w in FINANCE_KEYWORDS):
                     continue
+
         filtered_matches.append(item)
 
     if not filtered_matches:
-        return f"Tidak ditemukan berkas publik di Google Drive CDPK yang sesuai dengan wewenang akses Anda untuk kata kunci '{clean_query}'."
+        scope_desc = "Shared Drives resmi CDPK" if not is_adrian else "Google Drive CDPK"
+        return f"Tidak ditemukan berkas di {scope_desc} yang sesuai dengan wewenang akses Anda untuk kata kunci '*{clean_query}*'."
 
-    # Format keluaran rapi untuk Slack dengan pembatasan token ketat
-    lines = [f"📂 Hasil pencarian berkas di Google Drive CDPK untuk '*{clean_query}*':\n"]
+    # Format keluaran rapi untuk Slack dengan pembatasan token ketat (Token Guard)
+    scope_title = "Shared Drives CDPK" if not is_adrian else "Google Drive CDPK"
+    lines = [f"📂 Hasil pencarian berkas di *{scope_title}* untuk '*{clean_query}*':\n"]
+
     for idx, item in enumerate(filtered_matches[:max_results], 1):
         # Format ukuran file
         size_str = ""
@@ -257,8 +275,10 @@ def search_google_drive(query: str, account: str = "citradata", max_results: int
             type_icon = "📝"
             type_name = "Dokumen"
 
+        drive_tag = "Shared Drive" if item.get("driveId") else "My Drive (Pribadi)"
+
         lines.append(f"{idx}. {type_icon} *{item['name']}*{size_str}")
-        lines.append(f"   • Tipe: {type_name} | Akun: {item['account']} | Update: {item['modified']}")
+        lines.append(f"   • Tipe: {type_name} | Scope: {drive_tag} | Update: {item['modified']}")
         lines.append(f"   • ID: `{item['id']}`")
         if item["link"]:
             lines.append(f"   • Buka Berkas: <{item['link']}|Akses Dokumen di Google Drive>\n")
@@ -268,21 +288,32 @@ def search_google_drive(query: str, account: str = "citradata", max_results: int
     output = "\n".join(lines).strip()
     return output[:1500]
 
-def read_google_drive_file(file_id: str, account: str = "citradata", max_chars: int = 1800, user_level: str = "STANDARD") -> str:
+def read_google_drive_file(file_id: str, account: str = "citradata", max_chars: int = 1800, user_access: dict = None) -> str:
     """
     Membaca dan mengekstrak isi teks/ringkasan data dari berkas Google Drive
-    (Google Sheet, Google Doc, PDF, atau Text) dengan Token-Guard dan penegakan Hak Akses 3-Tier RBAC.
+    dengan verifikasi ketat Hak Akses 3-Tier RBAC dan Scope Shared Drive.
     """
     if not file_id:
         return "ID file Google Drive tidak boleh kosong."
 
+    user_access = user_access or {}
+    user_level = user_access.get("level", "STANDARD") or "STANDARD"
+    is_adrian = bool(
+        user_access.get("is_adrian") or
+        user_access.get("user_id") == "U0C2CR9NAF7" or
+        "adrian@citradata.id" in user_access.get("email", "").lower()
+    )
+
     clean_file_id = file_id.strip()
+
+    # --- PENEGAKAN AKSES AKUN PERSONAL ---
+    if account.lower() in ["personal", "adrian"] and not is_adrian:
+        return "🔒 *Akses Ditolak:* Berkas pada akun Personal (adrian.kansil@gmail.com) dibatasi khusus dan HANYA boleh diakses oleh Pak Adrian."
 
     # Cek token akun yang sesuai
     acc_key = "citradata" if account.lower() not in ["techsolutions", "personal"] else account.lower()
     tok = get_access_token(acc_key)
     if not tok:
-        # Coba fallback ke akun lain
         for fallback_acc in ["techsolutions", "personal"]:
             tok = get_access_token(fallback_acc)
             if tok:
@@ -299,7 +330,7 @@ def read_google_drive_file(file_id: str, account: str = "citradata", max_chars: 
         m_res = requests.get(
             f"https://www.googleapis.com/drive/v3/files/{clean_file_id}",
             headers=headers,
-            params={"fields": "id, name, mimeType, webViewLink, size", "supportsAllDrives": "true"},
+            params={"fields": "id, name, mimeType, webViewLink, size, driveId, teamDriveId", "supportsAllDrives": "true"},
             timeout=10
         )
         if m_res.status_code != 200:
@@ -311,17 +342,25 @@ def read_google_drive_file(file_id: str, account: str = "citradata", max_chars: 
     fname = meta.get("name", "Dokumen")
     mime = meta.get("mimeType", "")
     link = meta.get("webViewLink", "")
-
-    # --- PENEGAKAN HAK AKSES DATA RBAC 3-TIER PADA BERKAS ---
+    drive_id = meta.get("driveId") or meta.get("teamDriveId")
     fn_low = fname.lower()
-    if user_level != "DIREKSI":
-        if any(w in fn_low for w in ["gaji", "payroll", "salary", "upah", "dividen", "khusus direksi"]):
-            return f"🔒 *Akses Ditolak:* Dokumen '*{fname}*' merupakan berkas konfidensial Direksi/Penggajian dan hanya dapat diakses oleh Direksi CDPK HQ."
-        if user_level == "STANDARD":
-            if any(w in fn_low for w in ["laporan keuangan", "neraca", "laba rugi", "kas kecil", "rekening"]):
-                return f"🔒 *Akses Ditolak:* Dokumen '*{fname}*' bersifat konfidensial finansial dan hanya dapat diakses oleh Tim Finance atau Direksi CDPK HQ."
 
-    logger.info(f"Membaca file Drive '{fname}' ({mime}) [User Level: {user_level}]")
+    # --- PENEGAKAN ATURAN SCOPE (HANYA SHARED DRIVE UNTUK SELAIN ADRIAN) ---
+    if not is_adrian and not drive_id:
+        return f"🔒 *Akses Ditolak:* Dokumen '*{fname}*' berada di My Drive pribadi. Pengguna selain Pak Adrian hanya berhak mengakses dokumen pada Shared Drives / Team Drive resmi CDPK HQ."
+
+    # --- PENEGAKAN ATURAN HAK AKSES TIER PADA BERKAS ---
+    if user_level != "DIREKSI":
+        # Dilarang buka berkas BOD Drive atau nama mengandung Corporate/Direksi/HRD/Legalitas/Gaji
+        if drive_id == BOD_DRIVE_ID or any(w in fn_low for w in DIREKSI_ONLY_KEYWORDS):
+            return f"🔒 *Akses Ditolak:* Dokumen '*{fname}*' merupakan kelompok dokumen konfidensial Direksi/Corporate/HRD/Legalitas/Gaji dan HANYA dapat dibuka oleh jajaran Direksi CDPK HQ."
+
+        # Staf Umum dilarang buka berkas Finance & Order Management
+        if user_level == "STANDARD":
+            if any(w in fn_low for w in FINANCE_KEYWORDS):
+                return f"🔒 *Akses Ditolak:* Dokumen '*{fname}*' merupakan berkas Finance & Accounting / Order Management dan HANYA dapat dibuka oleh Tim Finance atau Direksi CDPK HQ."
+
+    logger.info(f"Membaca file Drive '{fname}' ({mime}) [User Level: {user_level}, is_adrian: {is_adrian}]")
 
     # 2. Kasus A: Google Spreadsheet (Export ke CSV dan ambil baris awal)
     if mime == "application/vnd.google-apps.spreadsheet":
@@ -334,7 +373,6 @@ def read_google_drive_file(file_id: str, account: str = "citradata", max_chars: 
             )
             if exp_res.status_code == 200:
                 raw_lines = exp_res.text.splitlines()
-                # Filter baris kosong berlebih
                 valid_lines = [l for l in raw_lines if l.strip().replace(",", "")]
                 preview_lines = valid_lines[:15]
                 content_preview = "\n".join(preview_lines)
@@ -411,7 +449,7 @@ GDRIVE_TOOLS = [
         "type": "function",
         "function": {
             "name": "search_google_drive",
-            "description": "Mencari berkas, dokumen, spreadsheet stok, datasheet teknis, atau proposal di Google Drive resmi CDPK HQ (Citradata dan Techsolutions) berdasarkan kata kunci pencarian.",
+            "description": "Mencari berkas, dokumen, spreadsheet stok, datasheet teknis, atau proposal di Shared Drives resmi CDPK HQ (Citradata dan Techsolutions) berdasarkan kata kunci pencarian. Sesuai regulasi, pencarian pada My Drive dan akun personal hanya diperbolehkan untuk Pak Adrian.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -422,7 +460,7 @@ GDRIVE_TOOLS = [
                     "account": {
                         "type": "string",
                         "enum": ["all", "citradata", "techsolutions", "personal"],
-                        "description": "Akun Google Drive target. Gunakan 'citradata' (default), 'techsolutions', atau 'all' untuk mencari di seluruh arsip cloud CDPK."
+                        "description": "Akun Google Drive target. Gunakan 'citradata' (default), 'techsolutions', atau 'all'. Opsi 'personal' hanya dapat diakses oleh Pak Adrian."
                     }
                 },
                 "required": ["query"]
@@ -433,7 +471,7 @@ GDRIVE_TOOLS = [
         "type": "function",
         "function": {
             "name": "read_google_drive_file",
-            "description": "Membaca dan merangkum isi data dari sebuah file Google Drive (Google Sheet/Excel, Google Doc, atau PDF) menggunakan ID berkas yang diperoleh dari pencarian.",
+            "description": "Membaca dan merangkum isi data dari sebuah file Google Drive (Google Sheet, Google Doc, atau PDF) menggunakan ID berkas yang diperoleh dari pencarian.",
             "parameters": {
                 "type": "object",
                 "properties": {

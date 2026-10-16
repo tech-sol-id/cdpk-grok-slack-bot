@@ -470,13 +470,13 @@ def ask_grok(messages: list, client=None, channel: str = None, thread_ts: str = 
                 elif fn_name == "search_google_drive":
                     g_query = fn_args.get("query", "")
                     g_acc = fn_args.get("account", "all")
-                    tool_output_str = search_google_drive(g_query, account=g_acc, user_level=u_level)
+                    tool_output_str = search_google_drive(g_query, account=g_acc, user_access=u_access)
 
                 # 9. Tool Google Drive: Read Google Drive File
                 elif fn_name == "read_google_drive_file":
                     fid = fn_args.get("file_id", "")
                     g_acc = fn_args.get("account", "citradata")
-                    tool_output_str = read_google_drive_file(fid, account=g_acc, user_level=u_level)
+                    tool_output_str = read_google_drive_file(fid, account=g_acc, user_access=u_access)
 
                 tool_call_messages.append({
                     "role": "tool",
@@ -725,68 +725,102 @@ DIREKSI_EMAILS = {"gama@citradata.id", "adrian@citradata.id", "janice@citradata.
 FINANCE_USER_IDS = {"U0C6KD2P527", "U0C6V9YCYLC", "U0C502ZV7FA"}
 FINANCE_EMAILS = {"sensen@citradata.id", "office@citradata.id", "finance@techsolutions.id"}
 
+# Profil Anggota Terdaftar Resmi CDPK HQ
+USER_OFFICIAL_PROFILES = {
+    "U0C1PULSVUK": {"name": "Pak Gama", "role": "DIREKSI", "email": "gama@citradata.id", "title": "Direktur"},
+    "U0C2CR9NAF7": {"name": "Pak Adrian", "role": "DIREKSI", "email": "adrian@citradata.id", "title": "Direktur", "is_adrian": True},
+    "U0C5FJNKXJR": {"name": "Bu Janice", "role": "DIREKSI", "email": "janice@citradata.id", "title": "Direktur"},
+    "U0C6VQR8RT7": {"name": "Pak Richard", "role": "DIREKSI", "email": "rjap@citradata.id", "title": "Direktur"},
+    "U0C6KD2P527": {"name": "Pak Sen Sen", "role": "FINANCE", "email": "sensen@citradata.id", "title": "Finance & Accounting"},
+    "U0C6V9YCYLC": {"name": "Bu Ririn", "role": "FINANCE", "email": "office@citradata.id", "title": "Finance & Office"},
+    "U0C502ZV7FA": {"name": "Bu Villa", "role": "FINANCE", "email": "finance@techsolutions.id", "title": "Finance Techsolutions"},
+}
+
 def get_user_access_level(client, user_id: str) -> dict:
-    """Mengecek profil penanya di Slack untuk menentukan level hak akses secara presisi (Direksi, Finance, Standard)."""
+    """Mengecek profil penanya di Slack untuk menentukan level hak akses secara presisi (Direksi, Finance, Standard) dan kepemilikan akun Adrian."""
     if not user_id:
-        return {"level": "STANDARD", "name": "Anggota Tim", "email": ""}
+        return {"user_id": "", "level": "STANDARD", "name": "Anggota Tim", "email": "", "is_adrian": False}
 
-    # 1. Verifikasi Cepat via User ID Permanen
-    if user_id in DIREKSI_USER_IDS:
-        return {"level": "DIREKSI", "name": "Direksi CDPK HQ", "email": ""}
-    if user_id in FINANCE_USER_IDS:
-        return {"level": "FINANCE", "name": "Tim Finance CDPK HQ", "email": ""}
+    is_adrian_flag = (user_id == "U0C2CR9NAF7")
 
+    # 1. Verifikasi Cepat via Profil Resmi Terdaftar
+    if user_id in USER_OFFICIAL_PROFILES:
+        prof = USER_OFFICIAL_PROFILES[user_id]
+        return {
+            "user_id": user_id,
+            "level": prof["role"],
+            "name": prof["name"],
+            "email": prof["email"],
+            "title": prof.get("title", ""),
+            "is_adrian": is_adrian_flag
+        }
+
+    # 2. Verifikasi Dinamis via Slack API
     try:
-        user_info = client.users_info(user=user_id).get("user", {})
+        user_info = client.users_info(user=user_id).get("user", {}) if client else {}
         profile = user_info.get("profile", {})
         email = profile.get("email", "").lower().strip()
         real_name = profile.get("real_name") or user_info.get("name", "Anggota Tim")
-        display_name = (profile.get("display_name") or "").lower()
         title = (profile.get("title") or "").lower()
 
-        # 2. Verifikasi Berlapis via Email Resmi
-        if email in DIREKSI_EMAILS or any(d in email for d in ["adrian", "gama", "janice", "rjap"]):
-            return {"level": "DIREKSI", "name": real_name, "email": email, "title": profile.get("title", "")}
-        if email in FINANCE_EMAILS or any(f in email for f in ["sensen", "finance@"]):
-            return {"level": "FINANCE", "name": real_name, "email": email, "title": profile.get("title", "")}
+        if not is_adrian_flag:
+            is_adrian_flag = (email in ["adrian@citradata.id", "adrian.kansil@gmail.com"])
 
-        # 3. Verifikasi via Kata Kunci Jabatan
-        if any(t in title for t in ["direktur", "director", "ceo", "cfo", "coo", "cto"]):
-            return {"level": "DIREKSI", "name": real_name, "email": email, "title": profile.get("title", "")}
-        if any(t in title for t in ["finance", "accounting", "keuangan"]):
-            return {"level": "FINANCE", "name": real_name, "email": email, "title": profile.get("title", "")}
+        # Klasifikasi Level Akses:
+        # Tier 1: Direksi
+        if user_id in DIREKSI_USER_IDS or email in DIREKSI_EMAILS or any(d in email for d in ["adrian", "gama", "janice", "rjap"]) or any(t in title for t in ["direktur", "director", "ceo", "cfo", "coo", "cto"]):
+            return {"user_id": user_id, "level": "DIREKSI", "name": real_name, "email": email, "title": profile.get("title", ""), "is_adrian": is_adrian_flag}
 
-        # 4. Default: Staf / Karyawan Umum
-        return {"level": "STANDARD", "name": real_name, "email": email, "title": profile.get("title", "")}
+        # Tier 2: Finance
+        if user_id in FINANCE_USER_IDS or email in FINANCE_EMAILS or any(f in email for f in ["sensen", "finance@"]) or any(t in title for t in ["finance", "accounting", "keuangan"]):
+            return {"user_id": user_id, "level": "FINANCE", "name": real_name, "email": email, "title": profile.get("title", ""), "is_adrian": is_adrian_flag}
+
+        # Tier 3: Staf / Karyawan Umum
+        return {"user_id": user_id, "level": "STANDARD", "name": real_name, "email": email, "title": profile.get("title", ""), "is_adrian": is_adrian_flag}
     except Exception as e:
         logger.warning(f"Gagal mengambil profil user {user_id}: {e}")
-        return {"level": "STANDARD", "name": "Anggota Tim", "email": ""}
+        return {"user_id": user_id, "level": "STANDARD", "name": "Anggota Tim", "email": "", "is_adrian": is_adrian_flag}
 
 def get_effective_system_prompt(user_access: dict = None, query: str = "") -> str:
     """Menggabungkan System Prompt identitas, Hak Akses Pengguna (3-Tier RBAC), Panduan Rujukan, dan Basis Pengetahuan Relevan."""
     user_name = user_access.get("name", "Anggota Tim") if user_access else "Anggota Tim"
     user_level = user_access.get("level", "STANDARD") if user_access else "STANDARD"
+    is_adrian = user_access.get("is_adrian", False) if user_access else False
     kb = retrieve_relevant_knowledge(query, user_level)
 
     if user_level == "DIREKSI":
+        adrian_note = " (Khusus Pak Adrian: memiliki akses penuh ke akun Google Drive Personal dan My Drive)" if is_adrian else ""
         rbac_instruction = (
-            f"👤 IDENTITAS PENANYA: {user_name} (ROLE: DIREKSI CDPK HQ).\n"
+            f"👤 IDENTITAS PENANYA: {user_name} (ROLE: DIREKSI CDPK HQ — TIER 1 ALL ACCESS).\n"
             f"OTORITAS AKSES: TERTINGGI (ALL ACCESS).\n"
-            f"- Penanya memiliki wewenang penuh untuk mengakses SELURUH informasi CDPK HQ tanpa batasan, termasuk dokumen dari folder 'Slack - Khusus Direksi', folder 'Slack - Finance', dokumen 'Gaji', dan seluruh data finansial perusahaan."
+            f"- Penanya memiliki wewenang penuh untuk mengakses SELURUH informasi CDPK HQ tanpa batasan:\n"
+            f"  * Seluruh Dokumen Umum, Proyek, dan Teknis\n"
+            f"  * Dokumen Finance & Accounting serta Order Management\n"
+            f"  * Dokumen kelompok Konfidensial: Corporate, Folder Direksi (BOD Drive), HRD, Personalia, Legalitas, Akta, serta Penggajian (Gaji/Payroll/Kompensasi)\n"
+            f"  * Seluruh dokumen di Shared Drives Google Drive CDPK HQ{adrian_note}."
         )
     elif user_level == "FINANCE":
         rbac_instruction = (
-            f"👤 IDENTITAS PENANYA: {user_name} (ROLE: TIM FINANCE CDPK HQ).\n"
-            f"OTORITAS AKSES: FINANCE & DOKUMEN UMUM.\n"
-            f"- Penanya BERHAK mengakses dokumen operasional umum, folder 'Slack - Finance', folder 'Finance and Accounting', dan 'Order Management'.\n"
-            f"- BATASAN KETAT: JANGAN PERNAH berikan informasi dari folder 'Slack - Khusus Direksi' atau dokumen dengan judul/tema 'Gaji'. Jika ditanyakan, tolak secara sopan dan jelaskan bahwa dokumen Direksi dan data Penggajian hanya dapat diakses oleh Direksi."
+            f"👤 IDENTITAS PENANYA: {user_name} (ROLE: TIM FINANCE CDPK HQ — TIER 2 FINANCE).\n"
+            f"OTORITAS AKSES: DOKUMEN FINANCE, ORDER MANAGEMENT & DOKUMEN UMUM.\n"
+            f"- Penanya BERHAK mengakses:\n"
+            f"  * Dokumen operasional umum (produk, SOP, brosur, materi umum)\n"
+            f"  * Dokumen Finance & Accounting, Order Management, invoice, faktur, neraca, kas kecil, PO Customer\n"
+            f"- BATASAN KETAT (DILARANG KERAS):\n"
+            f"  * DILARANG memberikan informasi atau berkas dari kelompok: Corporate, Folder Direksi (BOD Drive), HRD, Personalia, Legalitas, Akta, serta data Gaji/Payroll/Kompensasi Direksi/Karyawan.\n"
+            f"  * Jika ditanyakan, tolak secara sopan dan jelaskan bahwa dokumen Direksi, Legalitas, HRD, dan Penggajian hanya dapat diakses oleh Direksi CDPK HQ.\n"
+            f"- PENCARIAN GOOGLE DRIVE: Dibatasi HANYA pada Shared Drives / Team Drive resmi CDPK (DILARANG mengakses My Drive pribadi atau akun personal)."
         )
     else:
         rbac_instruction = (
-            f"👤 IDENTITAS PENANYA: {user_name} (ROLE: STAF / KARYAWAN UMUM CDPK HQ).\n"
-            f"OTORITAS AKSES: DOKUMEN PUBLIK & OPERASIONAL UMUM SAJA.\n"
-            f"- Penanya HANYA berhak mengakses informasi SOP dan operasional umum (seperti FMTCS, IMS, Operasional umum, panduan produk, dll).\n"
-            f"- BATASAN KETAT: JANGAN PERNAH berikan informasi dari folder 'Finance and Accounting', 'Order Management', 'Slack - Finance', 'Slack - Khusus Direksi', atau informasi bertema 'Gaji'. Jika ditanyakan, tolak dengan sopan dan jelaskan bahwa informasi tersebut bersifat konfidensial dan hanya dapat diakses oleh Tim Finance atau Direksi."
+            f"👤 IDENTITAS PENANYA: {user_name} (ROLE: STAF / KARYAWAN UMUM CDPK HQ — TIER 3 UMUM).\n"
+            f"OTORITAS AKSES: DOKUMEN UMUM SAJA.\n"
+            f"- Penanya HANYA berhak mengakses kelompok DOKUMEN UMUM:\n"
+            f"  * ATEX, FMTCS, i.Safe Mobile, IMS, Marketing, OPERATIONS, POCStar, SafeUEM, Sales, RugGear, katalog produk, dan SOP teknis umum.\n"
+            f"- BATASAN KETAT (DILARANG KERAS):\n"
+            f"  * DILARANG memberikan informasi atau berkas dari: Finance & Accounting, Order Management, Corporate, Folder Direksi (BOD Drive), HRD, Personalia, Legalitas, Akta, serta Gaji/Payroll.\n"
+            f"  * Jika ditanyakan, tolak secara sopan dan sampaikan bahwa data tersebut bersifat konfidensial dan hanya dapat diakses oleh Tim Finance atau Direksi CDPK HQ.\n"
+            f"- PENCARIAN GOOGLE DRIVE: Dibatasi HANYA pada Shared Drives / Team Drive resmi CDPK (DILARANG mengakses My Drive pribadi atau akun personal)."
         )
 
     strict_md_instruction = (
