@@ -25,6 +25,15 @@ from reminder_engine import (
 )
 from web_search_engine import perform_web_search, read_web_page_content, WEB_TOOLS
 from gdrive_engine import search_google_drive, read_google_drive_file, GDRIVE_TOOLS
+from copilot_engine import (
+    PILOT_EXECUTIVES,
+    verify_user_channel_membership,
+    check_cross_channel_access_guard,
+    handle_smart_copilot_ghostwriter,
+    send_morning_executive_briefing,
+    send_end_of_day_digest,
+    start_copilot_worker,
+)
 
 ALL_TOOLS = DOC_TOOLS + REMINDER_TOOLS + WEB_TOOLS + GDRIVE_TOOLS
 
@@ -914,11 +923,29 @@ def send_security_audit_alert(client, user_access: dict, channel_id: str, user_t
 def check_channel_privacy_guard(client, channel_id: str, user_text: str, user_access: dict) -> Optional[str]:
     """
     Memeriksa apakah permintaan data sensitif dilakukan pada channel yang aman dan oleh user yang berwenang.
+    0. Validasi Zero-Trust Keanggotaan Saluran (Channel Membership Verification & Anti-Inference Protection).
     1. Jika TIDAK PUNYA AKSES: Ditolak langsung (di channel umum maupun DM) dan mengirimkan laporan audit instan ke Pak Adrian.
     2. Jika PUNYA AKSES tetapi di channel publik: Ditolak dan diarahkan ke channel aman (#leadership / DM).
     """
     if not channel_id:
         return None
+
+    user_id = user_access.get("user_id", "") if user_access else ""
+
+    # ==========================================================================
+    # KASUS 0: ZERO-TRUST CHANNEL MEMBERSHIP VERIFICATION & ANTI-INFERENCE GUARD
+    # Mencegah pengguna meminta rekap/aktivitas dari channel yang tidak diikutinya
+    # ==========================================================================
+    cross_ch_block = check_cross_channel_access_guard(
+        client=client,
+        user_id=user_id,
+        user_access=user_access,
+        current_channel_id=channel_id,
+        user_text=user_text,
+        audit_alert_fn=send_security_audit_alert
+    )
+    if cross_ch_block:
+        return cross_ch_block
 
     text_lower = user_text.lower()
 
@@ -1437,18 +1464,30 @@ def handle_mention(event, say, client):
 
 @app.event("message")
 def handle_direct_message(event, say, client):
-    """Menangani pesan langsung (Direct Message) 1-on-1."""
-    channel = event.get("channel", "")
-    is_dm = channel.startswith("D") or event.get("channel_type") == "im"
-    if not is_dm:
-        return
-
-    # Abaikan pesan dari bot itu sendiri atau event subtype sistem/hapus
+    """
+    Menangani event message:
+    1. Jika di Channel Publik/Privat: Menjalankan Smart Co-Pilot Ghostwriter (Tahap 1) & Aturan Silent Drop di background thread.
+    2. Jika di Direct Message (DM 1-on-1): Menangani konsultasi langsung dengan penegakan Zero-Trust Guardrail & RBAC.
+    """
+    # Abaikan pesan dari bot itu sendiri atau event subtype sistem/hapus/edit
     if event.get("bot_id") or event.get("user") == "U0C9AN8PA80":
         return
-    if event.get("subtype") in ["message_deleted", "channel_join", "channel_leave"]:
+    if event.get("subtype") in ["message_deleted", "message_changed", "channel_join", "channel_leave", "bot_message"]:
         return
 
+    channel = event.get("channel", "")
+    is_dm = channel.startswith("D") or event.get("channel_type") == "im"
+
+    # KASUS A: Pesan di Channel (Bukan DM) -> Jalankan Smart Co-Pilot Ghostwriter (Tahap 1) & Silent Drop
+    if not is_dm:
+        threading.Thread(
+            target=handle_smart_copilot_ghostwriter,
+            args=(client, event, ask_grok, retrieve_relevant_knowledge, get_channel_identifier),
+            daemon=True
+        ).start()
+        return
+
+    # KASUS B: Pesan di Direct Message (DM 1-on-1)
     user_text = event.get("text", "").strip()
     media_items = get_media_items_for_message(client, event["channel"], event)
 
@@ -1474,6 +1513,22 @@ def handle_direct_message(event, say, client):
 
     user_id = event.get("user")
     user_access = get_user_access_level(client, user_id)
+
+    # 0. Penegakan Zero-Trust Guardrail & DLP di DM (Anti-Inference Protection, Channel Membership Verification, & Unauthorized Data Refusal)
+    guard_msg = check_channel_privacy_guard(client, event["channel"], user_text, user_access)
+    if guard_msg:
+        if initial_dm_ts:
+            try:
+                client.chat_update(channel=event["channel"], ts=initial_dm_ts, text=guard_msg)
+            except Exception:
+                say(text=guard_msg)
+        else:
+            say(text=guard_msg)
+        try:
+            client.reactions_remove(channel=event["channel"], timestamp=event["ts"], name="thinking_face")
+        except Exception:
+            pass
+        return
 
     # 1. Pengecekan Perintah Khusus: Sinkronisasi / Update Knowledge Base dari Drive via DM
     if is_sync_command(user_text):
@@ -1746,6 +1801,9 @@ if __name__ == "__main__":
 
     # Aktifkan scheduler background worker pengingat tim 24/7
     start_reminder_worker(app.client)
+
+    # Aktifkan Executive Co-Pilot Scheduler (Morning Briefing 07:45, Proactive Reminder 15-30m, & EOD Digest 17:30 WIB)
+    start_copilot_worker(app.client, ask_grok_fn=ask_grok)
 
     # Sinkronisasi proaktif tampilan Home Tab ke seluruh anggota tim di workspace
     home_sync_thread = threading.Thread(target=sync_all_users_home_tab_worker, args=(app.client,), daemon=True)
