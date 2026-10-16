@@ -584,7 +584,8 @@ def retrieve_relevant_knowledge(query: str, user_level: str = "STANDARD", top_k:
         "apa", "dan", "yang", "di", "ke", "dari", "ini", "itu", "untuk", "pada", "adalah",
         "saya", "bisa", "bagaimana", "apakah", "ttg", "tentang", "jelaskan", "tolong", "info", "kasih",
         "minta", "berikan", "kirim", "lihat", "cari", "tampilkan", "sebutkan", "dong", "ya", "mohon", "cek",
-        "data", "arsip", "dokumen", "file", "berkas", "semua", "ada", "gak", "nggak", "nya"
+        "data", "arsip", "dokumen", "file", "berkas", "semua", "ada", "gak", "nggak", "nya",
+        "pak", "bu", "bapak", "ibu", "nomer", "nomor", "siapa", "berapa"
     }
     search_tokens = [t for t in raw_tokens if t not in stop_words and len(t) >= 3]
     if not search_tokens:
@@ -643,6 +644,10 @@ def retrieve_relevant_knowledge(query: str, user_level: str = "STANDARD", top_k:
         "pegawai": ["karyawan", "employee", "staf", "staff", "personalia", "hrd", "sdm"],
         "personalia": ["karyawan", "pegawai", "hrd", "absensi", "gaji"],
         "hrd": ["personalia", "karyawan", "pegawai", "absensi", "talenta"],
+        "nip": ["employee id", "nik", "nomor induk", "employee_analysis", "data karyawan", "pegawai", "rekap_gaji"],
+        "nik": ["nip", "employee id", "nomor induk", "employee_analysis", "ktp"],
+        "ktp": ["nik", "identitas", "employee_analysis"],
+        "npwp": ["pajak", "employee_analysis"],
     }
     for st in list(expanded_tokens):
         if st in synonyms:
@@ -729,6 +734,11 @@ def retrieve_relevant_knowledge(query: str, user_level: str = "STANDARD", top_k:
                     if any(w in fn_lower for w in ["rekap_gaji", "employee", "karyawan", "personalia", "peraturan_perusahaan"]):
                         score += 250.0
 
+                # 8. Boost dokumen data karyawan & personalia jika kueri menyangkut NIP/NIK/KTP/karyawan
+                if any(w in cleaned_query for w in ["nip", "nik", "ktp", "npwp", "karyawan", "pegawai", "staf", "staff", "personalia", "identitas"]):
+                    if any(w in fn_lower for w in ["employee_analysis", "rekap_gaji", "karyawan", "personalia"]):
+                        score += 350.0
+
                 if score > 0:
                     category = first_segment.upper() if first_segment != "." else "UMUM"
                     snippet = extract_smart_snippet(content, expanded_tokens + product_codes, max_length=7500)
@@ -783,7 +793,10 @@ FINANCE_CHANNELS = {"leadership", "c0c27cr4b5y", "grp-finance", "tch-finance"}
 SENSITIVE_DIREKSI_KEYWORDS = [
     "corporate", "direksi", "bod drive", "hrd", "personalia", "legalitas", "akta",
     "gaji", "payroll", "salary", "upah", "dividen", "komisi", "bonus", "saham",
-    "remunerasi", "persuratan", "surat keputusan", "surat kuasa", "notulen", "rups"
+    "remunerasi", "persuratan", "surat keputusan", "surat kuasa", "notulen", "rups",
+    "nip", "nik", "ktp", "npwp", "karyawan", "pegawai", "nomor induk", "data pribadi",
+    "profil karyawan", "rekap gaji", "slip gaji", "thp", "cuti karyawan", "absensi karyawan",
+    "kontak karyawan", "alamat karyawan"
 ]
 
 SENSITIVE_FINANCE_KEYWORDS = [
@@ -836,18 +849,19 @@ def check_channel_privacy_guard(client, channel_id: str, user_text: str, user_ac
         # Dokumen umum (Datasheet, brosur, SOP umum, dll) bebas di semua channel
         return None
 
-    # Jika menyangkut data Direksi / Corporate / Legalitas / Gaji
+    # Jika menyangkut data Direksi / Corporate / Legalitas / Gaji / HRD / Karyawan
     if is_direksi_req:
         # Hanya boleh di DM atau channel #leadership
         env_leadership = os.environ.get("LEADERSHIP_CHANNEL_ID", "").lower()
         if c_ident not in LEADERSHIP_CHANNELS and (not env_leadership or c_ident != env_leadership):
             return (
-                "🔒 *Akses Data Sensitif Dibatasi di Channel Ini*\n\n"
-                "Demi menjaga kerahasiaan data perusahaan, permintaan dokumen atau informasi kategori "
-                "*Direksi, Corporate, Legalitas, dan Penggajian* tidak dapat ditampilkan pada channel terbuka yang memiliki anggota lain.\n\n"
+                "🔒 *Akses Data Sensitif / HRD Dibatasi di Channel Ini*\n\n"
+                "Demi menjaga kerahasiaan data perusahaan dan privasi data pribadi karyawan (Data Privacy & Corporate Governance), "
+                "permintaan dokumen atau informasi kategori *HRD, Personalia (NIP/NIK/KTP/NPWP), Profil Karyawan, Direksi, Corporate, Legalitas, dan Penggajian* "
+                "tidak dapat ditampilkan pada channel publik/terbuka yang memiliki anggota lain.\n\n"
                 "👉 *Silakan akses melalui:*\n"
                 "• Channel khusus Direksi: *#leadership*\n"
-                "• Atau melalui *Direct Message (DM) pribadi* dengan Grok CDPK."
+                "• Atau melalui *Direct Message (DM) pribadi* langsung dengan Grok CDPK."
             )
 
     # Jika menyangkut data Finance & Accounting / Order Management
@@ -1099,6 +1113,10 @@ def get_effective_system_prompt(user_access: dict = None, query: str = "", chann
         "     * Terkait DATA ABSENSI / KEHADIRAN KARYAWAN:\n"
         "       • Jelaskan bahwa pencatatan kehadiran operasional harian terpusat di sistem cloud Mekari Talenta (dan dokumen bukti/URD Talenta di Google Drive).\n"
         "       • Sedangkan rekapitulasi potongan keterlambatan, ketidakhadiran, sakit, dan izin tercatat secara bulanan di dalam rekapitulasi penggajian (rekap_gaji_2026.md).\n"
+        "     * Terkait DATA KARYAWAN & PEGAWAI (seperti NIP, NIK, Jabatan, Status Kepegawaian):\n"
+        "       • Jika ditanyakan di ruang aman (Direct Message pribadi atau #leadership), Anda WAJIB memeriksa dokumen 'employee_analysis.md' dan 'rekap_gaji_2026.md' pada Basis Pengetahuan Resmi di bawah.\n"
+        "       • Contoh: Data Teguh Yuliarto (Pak Teguh) -> NIP: 23092014, Jabatan: Administration and Tax Staff (Finance and Accounting), Lokasi: Pinangsia, Masuk Kerja: 1/9/2014, Status: Karyawan Tetap.\n"
+        "       • Sajikan informasi secara jelas, terstruktur rapi, dan akurat sesuai data yang tercatat.\n"
         "     * DILARANG KERAS menyatakan 'informasi arsip tidak ditemukan' apabila baris nama atau dokumen tersebut ada di dalam Basis Pengetahuan Resmi di bawah ini!\n"
         "14. KEMAMPUAN MULTIBAHASA & PENERJEMAHAN (INDONESIA ↔ ENGLISH ↔ MANDARIN 中文):\n"
         "   - ADAPTIVE LANGUAGE MATCHING:\n"
