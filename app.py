@@ -558,7 +558,7 @@ def extract_smart_snippet(content: str, query_tokens: list, max_length: int = 75
     else:
         return f"{header}\n\n[... bagian dokumen sebelumnya dilewati ...]\n\n{content[start_pos:end_pos]}"
 
-def retrieve_relevant_knowledge(query: str, user_level: str = "STANDARD", top_k: int = 8) -> str:
+def retrieve_relevant_knowledge(query: str, user_level: str = "STANDARD", top_k: int = 8, user_name: str = "") -> str:
     """Mencari dokumen paling relevan dengan pertanyaan pengguna berdasarkan hak akses:
     - DIREKSI: mencari di subfolder umum, finance, dan direksi.
     - FINANCE: mencari di subfolder umum dan finance.
@@ -590,6 +590,12 @@ def retrieve_relevant_knowledge(query: str, user_level: str = "STANDARD", top_k:
     if not search_tokens:
         search_tokens = [t for t in raw_tokens if t not in stop_words] or raw_tokens
 
+    # Jika kueri mengandung kata personal ('saya', 'ku', 'milik'), sertakan token nama user
+    name_tokens = []
+    if user_name and any(w in cleaned_query for w in ["saya", "ku", "pribadi", "diri", "milik"]):
+        name_tokens = [t.lower() for t in re.findall(r'[a-zA-Z0-9]+', user_name) if len(t) >= 3 and t.lower() not in {"pak", "ibu", "bapak", "anggota", "tim"}]
+        search_tokens.extend(name_tokens)
+
     # Kamus alias merek & lini produk CDPK HQ
     brand_aliases = {
         "isafe": ["is540", "is440", "is940", "is945", "is530", "i_safe", "isafe", "atex", "iecex", "intrinsically", "zone"],
@@ -603,6 +609,8 @@ def retrieve_relevant_knowledge(query: str, user_level: str = "STANDARD", top_k:
     }
 
     expanded_tokens = list(search_tokens)
+    if name_tokens:
+        expanded_tokens.extend(name_tokens)
     for st in search_tokens:
         if st in brand_aliases:
             expanded_tokens.extend(brand_aliases[st])
@@ -754,16 +762,16 @@ DIREKSI_EMAILS = {"gama@citradata.id", "adrian@citradata.id", "janice@citradata.
 FINANCE_USER_IDS = {"U0C6KD2P527", "U0C6V9YCYLC", "U0C502ZV7FA"}
 FINANCE_EMAILS = {"sensen@citradata.id", "office@citradata.id", "finance@techsolutions.id"}
 
-# Profil Anggota Terdaftar Resmi CDPK HQ
+# Profil Anggota Terdaftar Resmi CDPK HQ (disinkronkan dengan data database payroll & karyawan)
 USER_OFFICIAL_PROFILES = {
-    "U0C1PULSVUK": {"name": "Pak Gama", "role": "DIREKSI", "email": "gama@citradata.id", "title": "Direktur"},
-    "U0C2CR9NAF7": {"name": "Pak Adrian", "role": "DIREKSI", "email": "adrian@citradata.id", "title": "Direktur", "is_adrian": True},
-    "U0C5FJNKXJR": {"name": "Bu Janice", "role": "DIREKSI", "email": "janice@citradata.id", "title": "Direktur"},
-    "U0C6VQR8RT7": {"name": "Pak Richard", "role": "DIREKSI", "email": "rjap@citradata.id", "title": "Direktur"},
-    "U0C6LAR079B": {"name": "Bu Nada", "role": "CORP_SECRETARY", "email": "ho@citradata.id", "title": "Corporate Secretary"},
-    "U0C6KD2P527": {"name": "Pak Sen Sen", "role": "FINANCE", "email": "sensen@citradata.id", "title": "Finance & Accounting"},
-    "U0C6V9YCYLC": {"name": "Bu Ririn", "role": "FINANCE", "email": "office@citradata.id", "title": "Finance & Office"},
-    "U0C502ZV7FA": {"name": "Bu Villa", "role": "FINANCE", "email": "finance@techsolutions.id", "title": "Finance Techsolutions"},
+    "U0C1PULSVUK": {"name": "Gamaliel Alexander Emil Waney (Pak Gama)", "role": "DIREKSI", "email": "gama@citradata.id", "title": "Direktur"},
+    "U0C2CR9NAF7": {"name": "Adrian Bany Kansil (Pak Adrian)", "role": "DIREKSI", "email": "adrian@citradata.id", "title": "Vice Director", "is_adrian": True},
+    "U0C5FJNKXJR": {"name": "Janice Jacob Kayan (Bu Janice)", "role": "DIREKSI", "email": "janice@citradata.id", "title": "Direktur Utama"},
+    "U0C6VQR8RT7": {"name": "Jap Yacob Kayan / Richard (Pak Richard)", "role": "DIREKSI", "email": "rjap@citradata.id", "title": "Direktur"},
+    "U0C6LAR079B": {"name": "Nada Najiha (Bu Nada)", "role": "CORP_SECRETARY", "email": "ho@citradata.id", "title": "Corporate Secretary"},
+    "U0C6KD2P527": {"name": "Oey Sin Seng / Sen Sen (Pak Sen Sen)", "role": "FINANCE", "email": "sensen@citradata.id", "title": "Finance & Accounting Manager"},
+    "U0C6V9YCYLC": {"name": "Ririn (Bu Ririn)", "role": "FINANCE", "email": "office@citradata.id", "title": "Finance & Office"},
+    "U0C502ZV7FA": {"name": "Villa Aulia (Bu Villa)", "role": "FINANCE", "email": "finance@techsolutions.id", "title": "Finance Techsolutions"},
 }
 
 # ==============================================================================
@@ -916,7 +924,7 @@ def get_effective_system_prompt(user_access: dict = None, query: str = "", chann
     user_name = user_access.get("name", "Anggota Tim") if user_access else "Anggota Tim"
     user_level = user_access.get("level", "STANDARD") if user_access else "STANDARD"
     is_adrian = user_access.get("is_adrian", False) if user_access else False
-    kb = retrieve_relevant_knowledge(query, user_level)
+    kb = retrieve_relevant_knowledge(query, user_level, user_name=user_name)
 
     is_dm = bool(channel and (channel.startswith("D") or channel in ["im", "direct_message"]))
     if is_dm:
@@ -1073,7 +1081,25 @@ def get_effective_system_prompt(user_access: dict = None, query: str = "", chann
         "     * Panggil tool ini HANYA JIKA pengguna secara spesifik meminta Anda membaca, menganalisis, merangkum, atau mengecek isi data di dalam berkas/spreadsheet/PDF tersebut.\n"
         "     * Jangan panggil tool ini jika pengguna hanya ingin mencari letak berkas atau link dokumennya.\n"
         "   - TAUTAN GOOGLE DRIVE LANGSUNG: Selalu sertakan link clickable `<URL|Nama File>` yang diperoleh dari hasil pencarian agar tim dapat langsung membuka dokumen tersebut di browser Slack dengan sekali klik.\n"
-        "   - MEKANISME HEMAT TOKEN (TOKEN-GUARD): Hasil pencarian Drive hanya mengembalikan metadata ringkas (~150-250 token). Pembacaan file Google Spreadsheet/Doc/PDF dipangkas ketat maksimal 1.800 karakter (~350-400 token) sehingga tidak menguras kuota token API."
+        "   - MEKANISME HEMAT TOKEN (TOKEN-GUARD): Hasil pencarian Drive hanya mengembalikan metadata ringkas (~150-250 token). Pembacaan file Google Spreadsheet/Doc/PDF dipangkas ketat maksimal 1.800 karakter (~350-400 token) sehingga tidak menguras kuota token API.\n"
+        "13. PERMINTAAN GAJI, PENGGAJIAN & DATA PRIBADI DIREKSI/KARYAWAN:\n"
+        "   - Jika penanya adalah Direksi (seperti Adrian Bany Kansil / Pak Adrian) dan menanyakan gaji, tunjangan, THP, atau data pribadi ('berapa gaji saya?', 'minta data salary', 'data diri saya'):\n"
+        "     * Anda WAJIB memeriksa data nama penanya (contoh: Adrian Bany Kansil) di dalam dokumen 'rekap_gaji_2026.md' dan 'employee_analysis.md' pada Basis Pengetahuan Resmi CDPK HQ di bawah.\n"
+        "     * Sajikan secara rinci, transparan, dan terstruktur rapi:\n"
+        "       • Nama & NIP: Adrian Bany Kansil (NIP: 82112024)\n"
+        "       • Jabatan & Divisi: Vice Director (Management CDPK)\n"
+        "       • Gaji Pokok (Basic Salary): Rp 14.310.708\n"
+        "       • Tunjangan Jabatan: Rp 35.600.000\n"
+        "       • Tunjangan Makan & Transport: Rp 19.709.543 (Makan: Rp 11.825.726, Transport: Rp 7.883.817)\n"
+        "       • Total Allowance (Tunjangan): Rp 55.309.543\n"
+        "       • Gaji Bruto: Rp 68.122.372\n"
+        "       • Potongan PPh 21: Rp 14.794.234 | Potongan JHT/BPJS: Rp 1.497.879\n"
+        "       • Take Home Pay (THP) Bersih: Rp 53.328.138\n"
+        "       • Rekening Penyaluran: BCA 6030210300 a.n. Adrian Bany Kansil\n"
+        "     * Terkait DATA ABSENSI / KEHADIRAN KARYAWAN:\n"
+        "       • Jelaskan bahwa pencatatan kehadiran operasional harian terpusat di sistem cloud Mekari Talenta (dan dokumen bukti/URD Talenta di Google Drive).\n"
+        "       • Sedangkan rekapitulasi potongan keterlambatan, ketidakhadiran, sakit, dan izin tercatat secara bulanan di dalam rekapitulasi penggajian (rekap_gaji_2026.md).\n"
+        "     * DILARANG KERAS menyatakan 'informasi arsip tidak ditemukan' apabila baris nama atau dokumen tersebut ada di dalam Basis Pengetahuan Resmi di bawah ini!"
     )
 
     prompt_parts = [
