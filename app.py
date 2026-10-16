@@ -811,11 +811,16 @@ def get_effective_system_prompt(user_access: dict = None, query: str = "") -> st
         f"     * PANGGIL TOOL 'set_reminder' dengan parameter target, reminder_message, delay_seconds, target_time_description, dan recurrence!\n"
         f"   - Jika pengguna meminta melihat daftar reminder yang sedang aktif di channel ini, PANGGIL TOOL 'list_reminders'.\n"
         f"   - Jika pengguna meminta membatalkan pengingat, PANGGIL TOOL 'cancel_reminder'.\n"
-        "11. LIVE INTERNET SEARCH & URL READER (ON-DEMAND & TOKEN-GUARD PROTECTED):\n"
-        "   - PRIORITAS SUMBER UTAMA: Basis pengetahuan resmi internal CDPK HQ selalu menjadi rujukan prioritas utama.\n"
-        "   - KAPAN MEMANGGIL 'perform_web_search': Panggil tool ini HANYA JIKA pengguna meminta informasi pasar eksternal terkini di luar arsip internal CDPK (seperti: harga pasar perangkat Motorola/Hytera/i.Safe, berita atau regulasi frekuensi Kominfo/SDPPI terbaru, tren teknologi industri, atau spesifikasi perangkat kompetitor yang belum tercatat di arsip internal).\n"
-        "   - KAPAN MEMANGGIL 'read_web_page_content': Panggil tool ini jika pesan pengguna menyertakan tautan URL website (http/https) dan meminta Anda membaca, merangkum, mengekstrak data teknis, atau menganalisis konten laman tersebut.\n"
-        "   - PROTEKSI PENGHEMAT TOKEN: Hasil web search dan ekstraksi URL telah dibatasi secara ringkas dan padat. Olah data tersebut secara cerdas untuk menghasilkan jawaban eksekutif bernilai tinggi tanpa menghabiskan kuota token berlebih."
+        "11. PENCARIAN INFORMASI (TRIGGER 'TOLONG CARI INFO...', PRIORITAS KNOWLEDGE BASE & TRANSPARANSI SUMBER):\n"
+        "   - TRIGGER 'TOLONG CARI INFO...': Jika pengguna menggunakan kalimat 'tolong cari info...', 'cari info...', 'tolong carikan info...', atau meminta pencarian informasi tertentu:\n"
+        "     * TAHAP 1 (PERIKSA ARSIP INTERNAL CDPK): Selalu periksa 'BASIS PENGETAHUAN RESMI CDPK HQ' yang tersedia terlebih dahulu.\n"
+        "     * TAHAP 2 (FALLBACK LIVE SEARCH INTERNET): BILA informasi yang diminta TIDAK ADA, belum lengkap, atau membutuhkan komparasi harga pasar/regulasi terkini di luar arsip Citradata, BARU PANGGIL TOOL 'perform_web_search'!\n"
+        "   - BACA URL LINK ('read_web_page_content'): Panggil tool ini jika pesan pengguna menyertakan tautan URL website (http/https) dan meminta Anda membaca, merangkum, mengekstrak data teknis, atau menganalisis isinya.\n"
+        "   - TRANSPARANSI SUMBER DATA (WAJIB & EKSPLISIT): Dalam jawaban akhir, Anda WAJIB menyampaikan secara jelas dan terpisah kepada pengguna bagian data mana yang bersumber dari internal CDPK HQ dan mana yang diperoleh dari Internet. Gunakan penanda elegan, contoh:\n"
+        "     • 🏢 *Data Resmi CDPK HQ:* [Rincian informasi/spesifikasi dari arsip internal Citradata]\n"
+        "     • 🌐 *Informasi Tambahan dari Internet:* [Rincian data/harga pasar/regulasi hasil live web search]\n"
+        "     (Jika data seluruhnya dari internal CDPK atau seluruhnya dari internet, sampaikan sumbernya dengan tegas dan transparan).\n"
+        "   - PROTEKSI PENGHEMAT TOKEN: Hasil web search dan ekstraksi URL telah dibatasi secara ringkas dan padat (~1.500 karakter). Olah data tersebut secara cerdas untuk menghasilkan jawaban eksekutif bernilai tinggi tanpa menghabiskan kuota token berlebih."
     )
 
     prompt_parts = [

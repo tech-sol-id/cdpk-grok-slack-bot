@@ -126,7 +126,7 @@ WEB_TOOLS = [
         "type": "function",
         "function": {
             "name": "perform_web_search",
-            "description": "Lakukan live web search di internet untuk mendapatkan informasi eksternal terkini, berita, harga pasar, spesifikasi perangkat kompetitor, atau regulasi yang tidak ada di arsip internal CDPK HQ.",
+            "description": "Lakukan live web search di internet jika pengguna meminta 'tolong cari info...' atau menanyakan data eksternal, dan informasi yang dibutuhkan TIDAK DITEMUKAN atau belum lengkap di basis pengetahuan resmi internal CDPK HQ (contoh: harga pasar umum, spesifikasi perangkat pihak ketiga/kompetitor, regulasi terbaru Kominfo, atau berita eksternal).",
             "parameters": {
                 "type": "object",
                 "properties": {
