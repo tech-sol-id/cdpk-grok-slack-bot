@@ -883,12 +883,26 @@ def get_user_access_level(client, user_id: str) -> dict:
         logger.warning(f"Gagal mengambil profil user {user_id}: {e}")
         return {"user_id": user_id, "level": "STANDARD", "name": "Anggota Tim", "email": "", "is_adrian": is_adrian_flag}
 
-def get_effective_system_prompt(user_access: dict = None, query: str = "") -> str:
-    """Menggabungkan System Prompt identitas, Hak Akses Pengguna (3-Tier RBAC + Corporate Secretary), Panduan Rujukan, dan Basis Pengetahuan Relevan."""
+def get_effective_system_prompt(user_access: dict = None, query: str = "", channel: str = "") -> str:
+    """Menggabungkan System Prompt identitas, Hak Akses Pengguna (3-Tier RBAC + Corporate Secretary), Status Konteks Saluran (DM vs Channel Publik), Panduan Rujukan, dan Basis Pengetahuan Relevan."""
     user_name = user_access.get("name", "Anggota Tim") if user_access else "Anggota Tim"
     user_level = user_access.get("level", "STANDARD") if user_access else "STANDARD"
     is_adrian = user_access.get("is_adrian", False) if user_access else False
     kb = retrieve_relevant_knowledge(query, user_level)
+
+    is_dm = bool(channel and (channel.startswith("D") or channel in ["im", "direct_message"]))
+    if is_dm:
+        channel_context_instruction = (
+            "📍 STATUS KONTEKS RUANG OBROLAN: DIRECT MESSAGE (DM PRIBADI 1-ON-1).\n"
+            "- PERHATIAN PENTING: Obrolan saat ini berlangsung di ruang chat privat 1-on-1 (hanya antara Anda dan penanya). TIDAK ADA anggota atau staf lain yang dapat melihat percakapan ini.\n"
+            "- Anda SEPENUHNYA DIIZINKAN dan DIWAJIBKAN menjawab serta menyajikan seluruh informasi dan data sensitif (Direksi, Finance, Corporate, Legalitas, Arsip Perusahaan, Gaji/Payroll jika penanya Direksi) sesuai wewenang hak akses penanya di sini.\n"
+            "- DILARANG KERAS menolak atau menyuruh penanya untuk pindah ke DM pribadi lagi, karena obrolan ini SUDAH 100% berada di dalam DM pribadi yang aman!"
+        )
+    else:
+        channel_context_instruction = (
+            "📍 STATUS KONTEKS RUANG OBROLAN: SALURAN/CHANNEL SLACK (BISA DILIHAT OLEH ANGGOTA LAIN).\n"
+            "- Jika obrolan ini berlangsung di channel terbuka (bukan di #leadership / #grp-finance / #tch-finance), DILARANG membocorkan data konfidensial Direksi/Finance dan arahkan penanya ke channel khusus atau via Direct Message (DM) pribadi."
+        )
 
     if user_level == "DIREKSI":
         adrian_note = " (Khusus Pak Adrian: memiliki akses penuh ke akun Google Drive Personal dan My Drive)" if is_adrian else ""
@@ -1036,6 +1050,7 @@ def get_effective_system_prompt(user_access: dict = None, query: str = "") -> st
     prompt_parts = [
         SYSTEM_PROMPT,
         rbac_instruction,
+        channel_context_instruction,
         strict_md_instruction,
         slack_formatting_instruction,
         solution_architect_instruction
@@ -1060,7 +1075,7 @@ def get_effective_system_prompt(user_access: dict = None, query: str = "") -> st
 
 def get_thread_context(client, channel: str, thread_ts: str, bot_user_id: str, user_access: dict = None, query: str = "") -> list:
     """Mengambil riwayat percakapan dalam thread agar percakapan memiliki memori/konteks lengkap (termasuk media lampiran)."""
-    messages = [{"role": "system", "content": get_effective_system_prompt(user_access, query=query)}]
+    messages = [{"role": "system", "content": get_effective_system_prompt(user_access, query=query, channel=channel)}]
     try:
         result = client.conversations_replies(channel=channel, ts=thread_ts, limit=12)
         for msg in result.get("messages", []):
@@ -1191,7 +1206,7 @@ def handle_mention(event, say, client):
     else:
         user_content = [{"type": "text", "text": user_text}] + media_items if media_items else user_text
         conversation = [
-            {"role": "system", "content": get_effective_system_prompt(user_access, query=user_text)},
+            {"role": "system", "content": get_effective_system_prompt(user_access, query=user_text, channel=channel)},
             {"role": "user", "content": user_content}
         ]
 
@@ -1290,7 +1305,7 @@ def handle_direct_message(event, say, client):
     user_content = [{"type": "text", "text": user_text}] + media_items if media_items else user_text
 
     conversation = [
-        {"role": "system", "content": get_effective_system_prompt(user_access, query=user_text)},
+        {"role": "system", "content": get_effective_system_prompt(user_access, query=user_text, channel=event["channel"])},
         {"role": "user", "content": user_content}
     ]
 
