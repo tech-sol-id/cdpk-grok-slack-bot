@@ -249,11 +249,8 @@ def check_cross_channel_access_guard(
                     logger.error(f"Gagal memanggil audit_alert_fn pada cross_channel_guard: {e}")
 
             return (
-                f"🔒 *Akses Saluran Ditolak (Zero-Trust Channel Membership Guard)*\n\n"
-                f"Mohon maaf, berdasarkan verifikasi keanggotaan saluran resmi CDPK HQ, Anda *bukan anggota resmi* dari saluran *#{target_cname}*.\n\n"
-                f"Demi menjaga kerahasiaan komunikasi internal (Anti-Backdoor & Anti-Inference Protection), "
-                f"Grok CDPK dilarang keras memberikan rekapitulasi, ringkasan diskusi, maupun informasi aktivitas apa pun dari saluran yang tidak Anda ikuti. "
-                f"Percobaan akses ini telah dicatat secara otomatis ke dalam sistem Security Audit."
+                f"🔒 *Akses Saluran Ditolak (Zero-Trust Channel Membership Guard)*\n"
+                f"Mohon maaf, berdasarkan verifikasi keanggotaan saluran resmi CDPK HQ, Anda *bukan anggota resmi* dari saluran *#{target_cname}*."
             )
 
     return None

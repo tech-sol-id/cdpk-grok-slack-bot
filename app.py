@@ -1611,12 +1611,11 @@ def handle_direct_message(event, say, client):
                 audit_alert_fn=send_security_audit_alert
             )
             sim_reply = (
-                "🛡️ *[HASIL SIMULASI ZERO-TRUST GUARDRAIL]*\n\n"
+                "🛡️ *[HASIL SIMULASI ZERO-TRUST GUARDRAIL]*\n"
                 f"• *Skenario:* Staf non-anggota (`Ilham Pratomo` - Tier 3) mengirim DM ke Grok:\n"
-                f"  > _\"{fake_query}\"_\n\n"
+                f"> _\"{fake_query}\"_\n"
                 f"• *Respons Penolakan Bot kepada Staf tersebut:*\n"
-                f"{sim_block}\n\n"
-                f"✅ *Notifikasi Security Audit Real-Time* juga telah dikirimkan ke DM Pak Adrian (<@U0C2CR9NAF7>)."
+                f"{sim_block}"
             )
             if initial_dm_ts:
                 try:
